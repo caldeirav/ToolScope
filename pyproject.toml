@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=67", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toolscope"
+version = "0.1.0"
+description = "ToolScope: per-prompt automatic tool selection for LLM tool calling."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "Ilya Kolchinsky", email = "ikolchin@redhat.com"}
+]
+
+keywords = ["llm", "agents", "tools", "rag", "retrieval", "mcp", "langgraph", "langchain"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "pydantic>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ilya-kolchinsky/toolscope"
+Repository = "https://github.com/ilya-kolchinsky/toolscope"
+Issues = "https://github.com/ilya-kolchinsky/toolscope/issues"
+
+[project.optional-dependencies]
+st = ["sentence-transformers>=2.2"]
+http = ["httpx>=0.25"]
+milvus = ["pymilvus>=2.4"]
+fastmcp = ["fastmcp>=0.1"]
+dev = [
+  "pytest>=7.4",
+  "pytest-asyncio>=0.23",
+  "build>=1.2",
+  "twine>=5.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "integration: tests that require optional external deps (fastmcp, milvus, etc.)",
+]
