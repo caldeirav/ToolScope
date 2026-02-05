@@ -1,40 +1,29 @@
 # ToolScope
 
-**ToolScope** is a lightweight, production-ready **Tool RAG** library for agentic systems.
+[![PyPI](https://img.shields.io/pypi/v/toolscope)](https://pypi.org/project/toolscope/)
+[![Python](https://img.shields.io/pypi/pyversions/toolscope)](https://pypi.org/project/toolscope/)
+[![License](https://img.shields.io/pypi/l/toolscope)](LICENSE)
 
-It solves a core scalability problem in tool-using agents:
+**ToolScope** solves a core scalability problem in tool-using agents:
 
 > As the number of tools grows, LLMs become worse at selecting the right one.
 
-ToolScope fixes this by **filtering tools per turn** using semantic retrieval — *without changing how the model interacts with tools*.
+In addition to degraded accuracy and reliability, including a large number of tools in the prompt consumes context budget and can lead to prompt bloat.
+This is especially evident with small models.
 
-No meta-tools.  
-No retrievers exposed to the model.  
-No framework lock-in.
+ToolScope addresses this problem by filtering tools per prompt using semantic retrieval - the same way RAG does for text.
+
+*ToolScope does not change how the model interacts with tools, introduces no meta-tools and no framework lock-in.*
 
 ---
 
-## Why ToolScope?
+## Who should use ToolScope?
 
-When agents see hundreds of tools:
-
-- tool selection accuracy drops
-- context windows overflow
-- latency increases
-- small models break first
-
-ToolScope:
-- indexes tool descriptions in a vector database
-- retrieves only the **most relevant tools per prompt**
-- hands those tools to the model **exactly as before**
-
-The model doesn’t know ToolScope exists — it just performs better.
-
-Use ToolScope when:
-- you have dozens to hundreds of tools
-- tools come from MCP servers or registries
+ToolScope is for you if:
+- you have >20 tools, coming from MCP servers or registries
 - you want to keep using standard agent frameworks
 - you want predictable, debuggable behavior
+- you don’t want meta-tools
 
 ---
 
@@ -52,7 +41,6 @@ pip install toolscope
 pip install -e .
 ```
 
----
 
 ### 2. Minimal filtering
 
@@ -103,7 +91,6 @@ filtered = toolscope.filter(
 print(filtered)  # same tools, fewer of them
 ```
 
----
 
 ### 3. Indexed (stateful) usage
 
@@ -118,6 +105,8 @@ filtered = idx.filter(
     k=1,
 )
 ```
+
+Also check out the usage examples for [LangChain](./examples/langchain/01_langchain_create_agent_dynamic_tools.py), [LangGraph](./examples/langchain/03_langgraph_full_agent_loop_toolscope.py) and [FastMCP](./examples/fastmcp/00_fastmcp_minimal.py).
 
 ---
 
@@ -305,6 +294,26 @@ See:
 ```
 examples/fastmcp/
 ```
+
+---
+
+## Status & roadmap
+
+ToolScope is actively developed.
+
+Adapters:
+- ✅ LangGraph
+- ✅ FastMCP
+- ⏳ Llama Stack
+- ⏳ LlamaIndex
+- ⏳ AutoGen
+- ⏳ CrewAI
+- ⏳ Haystack
+
+Other features:
+- additional vector DB backends
+- more MCP normalizers
+- richer observability sinks
 
 ---
 
