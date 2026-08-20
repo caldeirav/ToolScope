@@ -1,8 +1,12 @@
 """
-HuggingFace model wrapper for tool-calling inference.
+Model wrappers for tool-calling inference.
 
-Tries native apply_chat_template(tools=...) first; falls back to a
-JSON-in-system-prompt approach for models whose templates lack tool support.
+Supports two backends:
+  - HFModel: local HuggingFace causal LM (transformers)
+  - OpenAIModel: remote OpenAI-compatible API (e.g. vLLM, TGI)
+
+Both try native tool calling first; fall back to a JSON-in-system-prompt
+approach for models whose templates lack tool support.
 """
 
 import json
@@ -337,6 +341,102 @@ class HFModel:
         new_tokens = output[0][prompt_len:].clone()
         del output, ids, generate_inputs
         return self._tokenizer.decode(new_tokens, skip_special_tokens=True)
+
+    def parse_tool_call(self, raw: str) -> Optional[ParsedToolCall]:
+        return _extract_tool_call(raw)
+
+
+class OpenAIModel:
+    """
+    Wraps an OpenAI-compatible API (e.g. vLLM, TGI) for tool-calling evaluation.
+
+    Tries native tool calling first (passing ``tools`` to the API).  If the
+    endpoint returns an error, falls back to injecting tool definitions into
+    a system prompt — the same strategy HFModel uses for models without
+    template-level tool support.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        base_url: str = "http://localhost:8000/v1",
+        api_key: str = "EMPTY",
+        max_new_tokens: int = 256,
+    ) -> None:
+        self.model_name = model_name
+        self.base_url = base_url
+        self.api_key = api_key
+        self.max_new_tokens = max_new_tokens
+        self._client = None
+        self._native_tools: Optional[bool] = None
+
+    def load(self) -> None:
+        from openai import OpenAI
+
+        self._client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+
+        print(f"Connecting to OpenAI-compatible endpoint: {self.base_url}")
+        print(f"  Model: {self.model_name}")
+        try:
+            self._client.models.list()
+            print("  Connection verified.")
+        except Exception as exc:
+            print(f"  Warning: could not list models ({exc}). "
+                  f"Inference may still work.")
+
+    def _predict_native(self, messages: List[Dict], tools: List[Dict]) -> str:
+        response = self._client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            tools=tools,
+            max_tokens=self.max_new_tokens,
+            temperature=0.0,
+        )
+        msg = response.choices[0].message
+        if msg.tool_calls:
+            tc = msg.tool_calls[0]
+            args = tc.function.arguments
+            return (
+                f'<tool_call>{{"name": "{tc.function.name}", '
+                f'"arguments": {args}}}</tool_call>'
+            )
+        return msg.content or ""
+
+    def _predict_fallback(self, messages: List[Dict], tools: List[Dict]) -> str:
+        fn_defs = [t["function"] for t in tools]
+        system_content = _FALLBACK_SYSTEM.format(
+            tools_json=json.dumps(fn_defs, indent=2)
+        )
+        full_messages = [{"role": "system", "content": system_content}] + list(messages)
+        response = self._client.chat.completions.create(
+            model=self.model_name,
+            messages=full_messages,
+            max_tokens=self.max_new_tokens,
+            temperature=0.0,
+        )
+        return response.choices[0].message.content or ""
+
+    def predict(self, messages: List[Dict], tools: List[Dict]) -> str:
+        if self._client is None:
+            self.load()
+
+        if self._native_tools is None:
+            try:
+                result = self._predict_native(messages, tools)
+                self._native_tools = True
+                return result
+            except Exception:
+                self._native_tools = False
+                return self._predict_fallback(messages, tools)
+
+        if self._native_tools:
+            try:
+                return self._predict_native(messages, tools)
+            except Exception:
+                self._native_tools = False
+                return self._predict_fallback(messages, tools)
+
+        return self._predict_fallback(messages, tools)
 
     def parse_tool_call(self, raw: str) -> Optional[ParsedToolCall]:
         return _extract_tool_call(raw)

@@ -49,8 +49,20 @@ python eval/run_eval.py --category simple multiple
 # Print per-instance details
 python eval/run_eval.py --verbose --samples 20 --dry-run
 
-# 4-bit quantization for low-VRAM setups (requires bitsandbytes)
-# Edit config.yaml: load_in_4bit: true   (currently not a CLI flag)
+# ── Remote inference via OpenAI-compatible API (e.g. vLLM) ──────────
+
+# Use a model served by vLLM (or any OpenAI-compatible endpoint)
+python eval/run_eval.py \
+  --backend openai \
+  --base-url http://localhost:8000/v1 \
+  --model Qwen/Qwen2.5-72B-Instruct
+
+# With a custom API key (or set OPENAI_API_KEY env var)
+python eval/run_eval.py \
+  --backend openai \
+  --base-url https://my-server:8000/v1 \
+  --api-key my-secret-key \
+  --model Qwen/Qwen2.5-72B-Instruct
 ```
 
 ---
@@ -61,10 +73,13 @@ python eval/run_eval.py --verbose --samples 20 --dry-run
 
 | Section | Key | Default | Description |
 |---|---|---|---|
-| `model` | `name` | `Qwen/Qwen2.5-7B-Instruct` | HuggingFace model ID |
-| `model` | `device` | `auto` | `auto` \| `cpu` \| `cuda` \| `mps` |
-| `model` | `dtype` | `auto` | `auto` \| `float16` \| `bfloat16` \| `float32` |
-| `model` | `max_new_tokens` | `256` | Max tokens for tool-call generation |
+| `model.defaults` | `backend` | `hf` | `hf` (local HuggingFace) \| `openai` (remote API) |
+| `model.defaults` | `device` | `auto` | `auto` \| `cpu` \| `cuda` \| `mps` (hf only) |
+| `model.defaults` | `dtype` | `auto` | `auto` \| `float16` \| `bfloat16` \| `float32` (hf only) |
+| `model.defaults` | `base_url` | `http://localhost:8000/v1` | API endpoint (openai only) |
+| `model.defaults` | `api_key` | `EMPTY` | API key, or set `OPENAI_API_KEY` (openai only) |
+| `model.defaults` | `max_new_tokens` | `256` | Max tokens for tool-call generation |
+| `model` | `entries` | — | List of model dicts; each has `name` + optional overrides |
 | `dataset` | `categories` | `[multiple]` | BFCL categories to include |
 | `dataset` | `samples` | `100` | Instances to evaluate (`null` = all) |
 | `dataset` | `pool_size` | `100` | Total tools in the distractor pool |
@@ -111,4 +126,5 @@ Results are saved as JSON to `eval/results/bfcl_eval_{timestamp}.json`. Each fil
 
 - The BFCL **multiple** category is the most informative: each entry has 2–5 function candidates, giving the model genuine choice. After pooling across entries, the model must pick from ~100 tools — a much harder task.
 - `--dry-run` uses a dummy model that always picks the first tool in its list. It validates the full pipeline (data loading, indexing, evaluation, reporting) without any GPU or model download.
-- Models that support native tool calling (Qwen2.5, Llama-3.1, Mistral-v0.3) via `apply_chat_template(tools=...)` are used in that mode automatically; others fall back to a JSON system-prompt approach.
+- Models that support native tool calling (Qwen2.5, Llama-3.1, Mistral-v0.3) via `apply_chat_template(tools=...)` or the OpenAI `tools` API parameter are used in that mode automatically; others fall back to a JSON system-prompt approach.
+- Local (`hf`) and remote (`openai`) models can be mixed freely in `model.entries` — each entry carries its own backend and connection settings.

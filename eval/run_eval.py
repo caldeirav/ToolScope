@@ -41,7 +41,7 @@ from tqdm import tqdm
 import toolscope
 from bfcl_eval.checkpoint import CheckpointManager
 from bfcl_eval.dataset import load_entries, collect_all_tools, build_instance_pool
-from bfcl_eval.model import DummyModel, HFModel
+from bfcl_eval.model import DummyModel, HFModel, OpenAIModel
 from bfcl_eval.evaluate import evaluate_instance, aggregate, AggregateMetrics, RetrieverMetrics
 from bfcl_eval.report import (
     print_report, print_cross_model_summary, save_results, print_verbose_instance,
@@ -64,20 +64,61 @@ def _deep_set(d: dict, dotted_key: str, value: object) -> None:
     d[keys[-1]] = value
 
 
-def _resolve_model_names(model_cfg: dict, cli_model: str | None) -> list[str]:
-    """Return the ordered list of model names to evaluate.
+def _resolve_model_entries(model_cfg: dict, cli_model: str | None) -> list[dict]:
+    """Return the ordered list of per-model config dicts.
 
-    Priority: --model CLI flag > model.names list > model.name (legacy).
+    Each dict has at least: name, backend, device, dtype, max_new_tokens,
+    base_url, api_key.
+
+    Supports three config shapes (newest first):
+      1. model.entries  — list of dicts, each with at least ``name``
+      2. model.names    — list of plain model-name strings
+      3. model.name     — single legacy string
+
+    Per-entry values override ``model.defaults``, which in turn override
+    hardcoded defaults.  CLI flags (--device, --backend, …) are written to
+    top-level model keys by _apply_overrides and take precedence over
+    ``model.defaults``.
     """
+    # 1. Hardcoded defaults
+    defaults = {
+        "backend": "hf",
+        "device": "auto",
+        "dtype": "auto",
+        "max_new_tokens": 256,
+        "base_url": "http://localhost:8000/v1",
+        "api_key": os.environ.get("OPENAI_API_KEY", "EMPTY"),
+    }
+
+    # 2. Config-level defaults (model.defaults section)
+    defaults.update(model_cfg.get("defaults", {}))
+
+    # 3. Top-level model keys (backward compat + CLI overrides)
+    for key in list(defaults):
+        if key in model_cfg and not isinstance(model_cfg[key], (dict, list)):
+            defaults[key] = model_cfg[key]
+
+    # Resolve entry list
     if cli_model:
-        return [cli_model]
-    names = model_cfg.get("names")
-    if names:
-        return list(names)
-    legacy = model_cfg.get("name")
-    if legacy:
-        return [legacy]
-    return ["Qwen/Qwen2.5-7B-Instruct"]
+        raw_entries = [{"name": cli_model}]
+    elif "entries" in model_cfg:
+        raw_entries = list(model_cfg["entries"])
+    elif "names" in model_cfg:
+        raw_entries = [{"name": n} for n in model_cfg["names"]]
+    elif "name" in model_cfg:
+        raw_entries = [{"name": model_cfg["name"]}]
+    else:
+        raw_entries = [{"name": "Qwen/Qwen2.5-7B-Instruct"}]
+
+    entries = []
+    for raw in raw_entries:
+        if isinstance(raw, str):
+            raw = {"name": raw}
+        entry = dict(defaults)
+        entry.update(raw)
+        entries.append(entry)
+
+    return entries
 
 
 def _apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
@@ -99,6 +140,12 @@ def _apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
         _deep_set(cfg, "output.results_dir", args.output_dir)
     if args.verbose:
         _deep_set(cfg, "output.verbose", True)
+    if args.backend:
+        _deep_set(cfg, "model.backend", args.backend)
+    if args.base_url:
+        _deep_set(cfg, "model.base_url", args.base_url)
+    if args.api_key:
+        _deep_set(cfg, "model.api_key", args.api_key)
     return cfg
 
 
@@ -111,11 +158,12 @@ _GATED_MODELS = {
 }
 
 
-def _preflight_check(model_names: list[str]) -> None:
+def _preflight_check(model_entries: list[dict]) -> None:
     """Warn early about prerequisites that would cause the run to fail later."""
     import os
 
-    gated = [m for m in model_names if m in _GATED_MODELS]
+    hf_names = [e["name"] for e in model_entries if e["backend"] == "hf"]
+    gated = [m for m in hf_names if m in _GATED_MODELS]
     if not gated:
         return
 
@@ -148,7 +196,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--config", default="eval/config.yaml")
     p.add_argument("--model",
-                   help="Single HuggingFace model name (overrides model.names in config)")
+                   help="Single model name (overrides model.entries in config)")
     p.add_argument("--device", help="Inference device: auto | cpu | cuda | mps")
     p.add_argument("--dtype", help="Model dtype: auto | float16 | bfloat16 | float32")
     p.add_argument("--samples", type=int, help="Max evaluation instances (per category)")
@@ -158,6 +206,14 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="BFCL categories: simple multiple parallel parallel_multiple")
     p.add_argument("--seed", type=int)
     p.add_argument("--output-dir", dest="output_dir")
+    p.add_argument("--backend", choices=["hf", "openai"],
+                   help="Model backend: hf (local HuggingFace) | openai (remote API)")
+    p.add_argument("--base-url", dest="base_url",
+                   help="Base URL for the OpenAI-compatible endpoint "
+                        "(e.g. http://localhost:8000/v1)")
+    p.add_argument("--api-key", dest="api_key",
+                   help="API key for the OpenAI-compatible endpoint "
+                        "(default: OPENAI_API_KEY env var, or 'EMPTY')")
     p.add_argument("--dry-run", action="store_true",
                    help="Use a dummy model (no GPU needed) to test the full pipeline")
     p.add_argument("--no-resume", dest="no_resume", action="store_true",
@@ -261,7 +317,8 @@ def main() -> None:
     out_cfg     = cfg.get("output", {})
     embed_cfg   = ts_cfg.get("embedding", {})
 
-    model_names       = _resolve_model_names(model_cfg, args.model)
+    model_entries     = _resolve_model_entries(model_cfg, args.model)
+    model_names       = [e["name"] for e in model_entries]
     categories        = ds_cfg.get("categories", ["multiple"])
     samples           = ds_cfg.get("samples")
     pool_size         = ds_cfg.get("pool_size", 100)
@@ -278,9 +335,12 @@ def main() -> None:
     print("=== BFCL Evaluation — Model × Retriever Matrix ===")
     if args.dry_run:
         print("  Mode      : DRY RUN (dummy model, no GPU needed)")
-    print(f"  Models    : {len(model_names)}")
-    for mn in model_names:
-        print(f"              {mn}")
+    print(f"  Models    : {len(model_entries)}")
+    for entry in model_entries:
+        tag = entry["backend"]
+        if tag == "openai":
+            tag += f" → {entry['base_url']}"
+        print(f"              {entry['name']}  ({tag})")
     print(f"  Categories: {categories}")
     print(f"  Samples   : {samples or 'all'}")
     print(f"  Pool size : {pool_size}  |  k: {k}  |  Seed: {seed}")
@@ -328,20 +388,23 @@ def main() -> None:
 
     # ══ Pre-flight checks ════════════════════════════════════════════════════
 
-    _preflight_check(model_names)
+    _preflight_check(model_entries)
 
     # ══ Model loop ═══════════════════════════════════════════════════════════
 
     all_metrics: dict[str, AggregateMetrics] = {}   # model_name → metrics
     failed_models: list[str] = []
 
-    for model_idx, model_name in enumerate(model_names):
+    for model_idx, entry in enumerate(model_entries):
 
+        model_name = entry["name"]
         t0 = time.monotonic()
         started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         print("─" * 60)
-        print(f"  Model {model_idx + 1}/{len(model_names)}: {model_name}")
+        print(f"  Model {model_idx + 1}/{len(model_entries)}: {model_name}")
+        print(f"  Backend   : {entry['backend']}"
+              + (f"  ({entry['base_url']})" if entry["backend"] == "openai" else ""))
         print(f"  Started   : {started_at}")
         print("─" * 60)
         print()
@@ -366,7 +429,7 @@ def main() -> None:
                 # In an exec chain, models completed in a prior process invocation
                 # have nothing left to do.  Skip silently — metrics are reconstructed
                 # from the saved JSON file at cross-model summary time.
-                if not remaining and not args.model and len(model_names) > 1:
+                if not remaining and not args.model and len(model_entries) > 1:
                     continue
 
                 print(f"  Checkpoint: {ckpt.path}")
@@ -384,12 +447,19 @@ def main() -> None:
                 if remaining:
                     if args.dry_run:
                         model = DummyModel()
+                    elif entry["backend"] == "openai":
+                        model = OpenAIModel(
+                            model_name=model_name,
+                            base_url=entry["base_url"],
+                            api_key=entry["api_key"],
+                            max_new_tokens=entry["max_new_tokens"],
+                        )
                     else:
                         model = HFModel(
                             model_name=model_name,
-                            device=model_cfg.get("device", "auto"),
-                            dtype=model_cfg.get("dtype", "auto"),
-                            max_new_tokens=model_cfg.get("max_new_tokens", 256),
+                            device=entry["device"],
+                            dtype=entry["dtype"],
+                            max_new_tokens=entry["max_new_tokens"],
                         )
                     # Eager load: any failure here is caught at model scope,
                     # not silently swallowed instance-by-instance.
@@ -501,7 +571,7 @@ def main() -> None:
         # Checkpoints ensure no work is lost across the exec chain.
         # --no-resume is stripped so exec'd invocations don't delete checkpoints
         # that were built by earlier links in the chain.
-        if not args.model and model_idx < len(model_names) - 1:
+        if not args.model and model_idx < len(model_entries) - 1:
             exec_argv = [str(Path(__file__).resolve())] + [
                 a for a in sys.argv[1:] if a != "--no-resume"
             ]

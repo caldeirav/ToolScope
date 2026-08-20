@@ -1,14 +1,25 @@
 model:
-  # List of HuggingFace models to evaluate. Each runs the full retriever matrix.
+  # Shared defaults for all model entries below.  Each entry can override
+  # any of these.  CLI flags (--backend, --device, …) also override defaults.
+  defaults:
+    backend: "hf"           # "hf" (local HuggingFace) | "openai" (remote API)
+    device: "auto"          # "auto" | "cpu" | "cuda" | "mps"   (hf only)
+    dtype: "auto"           # "auto" | "float16" | "bfloat16"   (hf only)
+    max_new_tokens: 256
+    # base_url: "http://localhost:8000/v1"   # openai only — vLLM default
+    # api_key: "EMPTY"                       # openai only — or set OPENAI_API_KEY
+
+  # Each entry runs the full retriever matrix.
   # CLI --model overrides this to a single model for quick one-off runs.
-  names:
-    - "Qwen/Qwen2.5-0.5B-Instruct"   #  ~1 GB bfloat16  — tiny, shows the floor
-    - "Qwen/Qwen2.5-1.5B-Instruct"   #  ~3 GB bfloat16
-    - "ibm-granite/granite-4.1-8b"         # ~16 GB — GQA, no sliding window, 128K context, ungated
-    - "Qwen/Qwen2.5-7B-Instruct"     # ~14 GB — strong tool caller, current default
-  device: "auto"          # "auto" | "cpu" | "cuda" | "mps"
-  dtype: "auto"           # "auto" | "float16" | "bfloat16" | "float32"
-  max_new_tokens: 256
+  entries:
+    - name: "Qwen/Qwen2.5-0.5B-Instruct"   #  ~1 GB bfloat16  — tiny, shows the floor
+    - name: "Qwen/Qwen2.5-1.5B-Instruct"   #  ~3 GB bfloat16
+    - name: "ibm-granite/granite-4.1-8b"    # ~16 GB — GQA, no sliding window, 128K context
+    - name: "Qwen/Qwen2.5-7B-Instruct"     # ~14 GB — strong tool caller
+    # Remote model example (uncomment and adjust):
+    # - name: "Qwen/Qwen2.5-72B-Instruct"
+    #   backend: "openai"
+    #   base_url: "http://my-server:8000/v1"
 
 dataset:
   categories:
