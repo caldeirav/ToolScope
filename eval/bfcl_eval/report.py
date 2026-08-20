@@ -1,0 +1,291 @@
+"""
+Results formatting: console table and JSON file output.
+"""
+
+import dataclasses
+import json
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from .evaluate import AggregateMetrics, InstanceResult
+
+
+def _pct(v: float) -> str:
+    return f"{v * 100:.1f}%"
+
+
+def _delta(d: float) -> str:
+    sign = "+" if d >= 0 else ""
+    return f"{sign}{d * 100:.1f}pp"
+
+
+def _f3(v: float) -> str:
+    return f"{v:.3f}"
+
+
+def print_report(
+    metrics: AggregateMetrics,
+    model_name: str,
+    categories: List[str],
+    pool_size: int,
+    k: int,
+    embedding_model: str,
+) -> None:
+    retriever_names = list(metrics.retrievers.keys())
+    # Column layout: label + Baseline + one column per retriever
+    label_w = 26
+    col_w = 11
+    n_cols = 1 + len(retriever_names)   # Baseline + retrievers
+    total_w = label_w + col_w * n_cols
+
+    print()
+    print("=" * total_w)
+    print("  BFCL Evaluation — Retrieval Baselines vs. ToolScope")
+    print("=" * total_w)
+    print(f"  Model      : {model_name}")
+    print(f"  Categories : {', '.join(categories)}")
+    print(f"  Instances  : {metrics.n}  (skipped: {metrics.n_skipped})")
+    print(f"  Pool size  : {pool_size} tools  (≈ {metrics.mean_baseline_tokens:,.0f} tokens/query)")
+    print(f"  k          : {k}")
+    print(f"  Embedder   : {embedding_model}")
+    print()
+
+    sep = "-" * total_w
+
+    # ── Header row ──────────────────────────────────────────────────────────
+    header = f"  {'Metric':<{label_w - 2}}" + f"{'Baseline':>{col_w}}"
+    for rname in retriever_names:
+        header += f"{rname:>{col_w}}"
+    print(header)
+    print(sep)
+
+    def row(label: str, baseline_val: str, retriever_vals: List[str]) -> None:
+        line = f"  {label:<{label_w - 2}}{baseline_val:>{col_w}}"
+        for v in retriever_vals:
+            line += f"{v:>{col_w}}"
+        print(line)
+
+    def retriever_only_row(label: str, retriever_vals: List[str]) -> None:
+        row(label, "—", retriever_vals)
+
+    # ── Model accuracy ───────────────────────────────────────────────────────
+    row(
+        "Tool name accuracy",
+        _pct(metrics.baseline_name_acc),
+        [_pct(metrics.retrievers[n].name_acc) for n in retriever_names],
+    )
+    row(
+        "Exact match (name + args)",
+        _pct(metrics.baseline_exact_match),
+        [_pct(metrics.retrievers[n].exact_match) for n in retriever_names],
+    )
+    row(
+        f"Δ name acc vs baseline",
+        "—",
+        [_delta(metrics.retrievers[n].delta_name_acc) for n in retriever_names],
+    )
+    row(
+        f"Δ exact match vs baseline",
+        "—",
+        [_delta(metrics.retrievers[n].delta_exact_match) for n in retriever_names],
+    )
+
+    print(sep)
+
+    # ── Retrieval quality ────────────────────────────────────────────────────
+    retriever_only_row(
+        f"Recall@{k}",
+        [_pct(metrics.retrievers[n].recall) for n in retriever_names],
+    )
+    retriever_only_row(
+        f"DCG@{k}",
+        [_f3(metrics.retrievers[n].dcg) for n in retriever_names],
+    )
+    retriever_only_row(
+        f"NDCG@{k}",
+        [_f3(metrics.retrievers[n].ndcg) for n in retriever_names],
+    )
+    retriever_only_row(
+        "Context compression",
+        [_pct(metrics.retrievers[n].mean_compression_rate) for n in retriever_names],
+    )
+    retriever_only_row(
+        "Avg prompt tokens",
+        [f"{metrics.retrievers[n].mean_tokens:,.0f}" for n in retriever_names],
+    )
+
+    print(sep)
+    print()
+
+    if "Oracle*" in metrics.retrievers:
+        print(
+            "  * Oracle always includes the ground-truth tool — not a real retriever.\n"
+            "    Its accuracy shows the ceiling if retrieval were perfect."
+        )
+        print()
+
+    low_recall = {
+        n: metrics.retrievers[n].recall
+        for n in retriever_names
+        if metrics.retrievers[n].recall < 0.9 and n != "Oracle*"
+    }
+    if low_recall:
+        worst = min(low_recall, key=low_recall.get)
+        missed = round((1 - low_recall[worst]) * 100, 1)
+        print(
+            f"  Note: {worst} missed the correct tool in {missed}% of cases.\n"
+            f"  Consider increasing k or using a stronger embedding model."
+        )
+        print()
+
+
+def print_cross_model_summary(
+    all_metrics: Dict[str, AggregateMetrics],
+    k: int,
+) -> None:
+    """
+    Print a compact model × retriever summary table.
+
+    Shows tool-name accuracy for every (model, retriever) pair so the full
+    interaction effect is visible at a glance.
+    """
+    if not all_metrics:
+        return
+
+    model_names    = list(all_metrics.keys())
+    retriever_names = list(next(iter(all_metrics.values())).retrievers.keys())
+
+    # Column widths
+    short_names = [n.split("/")[-1] for n in model_names]
+    label_w = max(len(s) for s in short_names) + 2
+    col_w = 10
+    n_cols = 1 + len(retriever_names)  # Baseline + retrievers
+    total_w = label_w + col_w * n_cols
+
+    sep = "─" * total_w
+
+    def _print_table(title: str, value_fn, baseline_fn=None) -> None:
+        """baseline_fn(m) → str for the Baseline column; None means show '—'."""
+        print(title)
+        header = f"  {'Model':<{label_w - 2}}" + f"{'Baseline':>{col_w}}"
+        for rn in retriever_names:
+            header += f"{rn:>{col_w}}"
+        print(header)
+        print(sep)
+        for mname, short in zip(model_names, short_names):
+            m = all_metrics[mname]
+            b_str = baseline_fn(m) if baseline_fn else "—"
+            line = f"  {short:<{label_w - 2}}{b_str:>{col_w}}"
+            for rn in retriever_names:
+                line += f"{value_fn(m, rn):>{col_w}}"
+            print(line)
+        print(sep)
+        print()
+
+    print()
+    print("═" * total_w)
+    print("  Cross-model summary")
+    print("═" * total_w)
+    print()
+
+    _print_table(
+        f"  Tool name accuracy",
+        lambda m, rn: _pct(m.retrievers[rn].name_acc),
+        baseline_fn=lambda m: _pct(m.baseline_name_acc),
+    )
+    _print_table(
+        f"  Exact match (name + args)",
+        lambda m, rn: _pct(m.retrievers[rn].exact_match),
+        baseline_fn=lambda m: _pct(m.baseline_exact_match),
+    )
+    _print_table(
+        f"  NDCG@{k}  (retrieval quality — same across models)",
+        lambda m, rn: _f3(m.retrievers[rn].ndcg),
+        baseline_fn=None,
+    )
+    _print_table(
+        f"  Δ name acc vs baseline",
+        lambda m, rn: _delta(m.retrievers[rn].delta_name_acc),
+        baseline_fn=None,
+    )
+
+
+def save_results(
+    results: List[InstanceResult],
+    metrics: AggregateMetrics,
+    config: Dict[str, Any],
+    output_dir: Path,
+    model_name: str = "",
+) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ts = int(time.time())
+    slug = model_name.split("/")[-1].replace(" ", "_") if model_name else ""
+    filename = f"bfcl_eval_{slug}_{ts}.json" if slug else f"bfcl_eval_{ts}.json"
+    path = output_dir / filename
+
+    def _pred(pred: Any) -> Optional[Dict]:
+        return dataclasses.asdict(pred) if pred is not None else None
+
+    instance_data = [
+        {
+            "id": r.id,
+            "query": r.query,
+            "ground_truth_names": r.ground_truth_names,
+            "baseline": {
+                "name_acc": r.baseline_name_acc,
+                "exact_match": r.baseline_exact_match,
+                "tokens": r.baseline_tokens,
+                "predicted": _pred(r.baseline_pred),
+            },
+            "retrievers": {
+                rname: {
+                    "name_acc": rr.name_acc,
+                    "exact_match": rr.exact_match,
+                    "recall": rr.recall,
+                    "dcg": rr.dcg,
+                    "ndcg": rr.ndcg,
+                    "gt_rank": rr.gt_rank,
+                    "tokens": rr.tokens,
+                    "compression_rate": rr.compression_rate,
+                    "tool_names": rr.tool_names,
+                    "predicted": _pred(rr.predicted),
+                }
+                for rname, rr in r.retrievers.items()
+            },
+        }
+        for r in results
+    ]
+
+    # AggregateMetrics contains nested dataclasses; asdict handles them recursively
+    data = {
+        "config": config,
+        "metrics": dataclasses.asdict(metrics),
+        "instances": instance_data,
+    }
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    print(f"  Results saved → {path}")
+    return path
+
+
+def print_verbose_instance(r: InstanceResult, k: int) -> None:
+    """Compact per-instance summary for --verbose mode."""
+    gt = ", ".join(r.ground_truth_names)
+    b_name = r.baseline_pred.name if r.baseline_pred else "<none>"
+    b_mark = "✓" if r.baseline_name_acc else "✗"
+    retriever_parts = []
+    for rname, rr in r.retrievers.items():
+        t_name = rr.predicted.name if rr.predicted else "<none>"
+        t_mark = "✓" if rr.name_acc else "✗"
+        rank_str = f"rank={rr.gt_rank}" if rr.gt_rank is not None else "rank=—"
+        retriever_parts.append(
+            f"{rname}={t_name} {t_mark} (ndcg={rr.ndcg:.2f} {rank_str})"
+        )
+    print(
+        f"  [{r.id}] {r.query[:55]!r}\n"
+        f"    GT={gt}  base={b_name} {b_mark}  |  "
+        + "  |  ".join(retriever_parts)
+    )

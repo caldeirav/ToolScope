@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Eval: downloaded data and results
+eval/.bfcl_cache/
+eval/results/
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
