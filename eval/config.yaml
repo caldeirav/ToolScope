@@ -1,0 +1,31 @@
+model:
+  # List of HuggingFace models to evaluate. Each runs the full retriever matrix.
+  # CLI --model overrides this to a single model for quick one-off runs.
+  names:
+    - "Qwen/Qwen2.5-0.5B-Instruct"   #  ~1 GB bfloat16  — tiny, shows the floor
+    - "Qwen/Qwen2.5-1.5B-Instruct"   #  ~3 GB bfloat16
+    - "ibm-granite/granite-4.1-8b"         # ~16 GB — GQA, no sliding window, 128K context, ungated
+    - "Qwen/Qwen2.5-7B-Instruct"     # ~14 GB — strong tool caller, current default
+  device: "auto"          # "auto" | "cpu" | "cuda" | "mps"
+  dtype: "auto"           # "auto" | "float16" | "bfloat16" | "float32"
+  max_new_tokens: 256
+
+dataset:
+  categories:
+    - "simple"        # "simple" | "multiple" | "parallel" | "parallel_multiple"
+    - "multiple"
+  samples: null       # number of instances to evaluate (null = all)
+  pool_size: 100      # total tools in the distractor pool
+  cache_dir: "eval/.bfcl_cache"
+  seed: 42
+
+toolscope:
+  k: 5                # tools ToolScope selects per query
+  embedding:
+    provider: "sentence-transformers"
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    allow_download: true
+
+output:
+  results_dir: "eval/results"
+  verbose: false      # print per-instance details during the run
