@@ -16,7 +16,7 @@ Usage in run_eval.py:
 
 import random
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 # ── Text helpers ────────────────────────────────────────────────────────────
@@ -123,6 +123,21 @@ class TFIDFRetriever:
         return [self._tools[i] for i in top_idx]
 
 
+class ToolScopeRetriever:
+    """
+    Adapts ``toolscope.adapters.langchain.ToolSelector`` to ``.filter(messages, k)``.
+
+    Operates on the same LangChain tool list the agent will ``bind_tools`` on.
+    """
+
+    def __init__(self, selector: Any, tools: List[Any]):
+        self._selector = selector
+        self._tools = list(tools)
+
+    def filter(self, messages: List[Dict], k: int) -> List[Any]:
+        return self._selector.select(messages, self._tools, k=k)
+
+
 class OracleRetriever:
     """Always returns the ground-truth tools. Retrieval upper bound.
 
@@ -143,9 +158,11 @@ class OracleRetriever:
         self._gt_names = list(gt_names)
 
     def filter(self, messages: List[Dict], k: int) -> List[Dict]:
+        from .tools import tool_name
+
         gt_set = set(self._gt_names)
-        gt_tools = [t for t in self._tools if t["function"]["name"] in gt_set]
-        others = [t for t in self._tools if t["function"]["name"] not in gt_set]
+        gt_tools = [t for t in self._tools if tool_name(t) in gt_set]
+        others = [t for t in self._tools if tool_name(t) not in gt_set]
         query = _query_text(messages)
         rng = random.Random(self._seed ^ (hash(query) & 0xFFFFFFFF))
         rng.shuffle(others)

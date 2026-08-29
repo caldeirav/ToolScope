@@ -32,9 +32,14 @@ def _config_sig(
     seed: int,
     k: int,
     dry_run: bool = False,
+    protocol: str = "legacy",
+    catalog_size: int = 0,
 ) -> str:
     prefix = "dryrun|" if dry_run else ""
-    key = f"{prefix}{model_name}|{'|'.join(sorted(categories))}|{pool_size}|{seed}|{k}"
+    key = (
+        f"{prefix}{protocol}|{model_name}|{'|'.join(sorted(categories))}"
+        f"|{pool_size}|{catalog_size}|{seed}|{k}"
+    )
     return hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
@@ -51,6 +56,7 @@ def _retriever_result_from_dict(d: Dict) -> RetrieverResult:
     return RetrieverResult(
         name_acc=d["name_acc"],
         exact_match=d["exact_match"],
+        ast_acc=d.get("ast_acc", d.get("exact_match", False)),
         recall=d["recall"],
         dcg=d["dcg"],
         ndcg=d["ndcg"],
@@ -60,6 +66,9 @@ def _retriever_result_from_dict(d: Dict) -> RetrieverResult:
         compression_rate=d["compression_rate"],
         raw=d.get("raw", ""),
         predicted=_parsed_tool_call_from_dict(d.get("predicted")),
+        error=d.get("error"),
+        latency_ms=d.get("latency_ms", 0.0),
+        prompt_tokens=d.get("prompt_tokens"),
     )
 
 
@@ -70,12 +79,16 @@ def _instance_result_from_dict(d: Dict) -> InstanceResult:
         ground_truth_names=d["ground_truth_names"],
         baseline_name_acc=d["baseline_name_acc"],
         baseline_exact_match=d["baseline_exact_match"],
+        baseline_ast_acc=d.get("baseline_ast_acc", d.get("baseline_exact_match", False)),
         baseline_tokens=d["baseline_tokens"],
         baseline_raw=d.get("baseline_raw", ""),
         baseline_pred=_parsed_tool_call_from_dict(d.get("baseline_pred")),
+        baseline_error=d.get("baseline_error"),
+        baseline_latency_ms=d.get("baseline_latency_ms", 0.0),
+        baseline_prompt_tokens=d.get("baseline_prompt_tokens"),
         retrievers={
             name: _retriever_result_from_dict(rr)
-            for name, rr in d["retrievers"].items()
+            for name, rr in d.get("retrievers", {}).items()
         },
     )
 
@@ -113,9 +126,14 @@ class CheckpointManager:
         k: int,
         resume: bool = True,
         dry_run: bool = False,
+        protocol: str = "legacy",
+        catalog_size: int = 0,
     ) -> None:
         slug = model_name.split("/")[-1]
-        sig = _config_sig(model_name, categories, pool_size, seed, k, dry_run=dry_run)
+        sig = _config_sig(
+            model_name, categories, pool_size, seed, k,
+            dry_run=dry_run, protocol=protocol, catalog_size=catalog_size,
+        )
         ckpt_dir = output_dir / "checkpoints"
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         self._path = ckpt_dir / f"{slug}_{sig}.jsonl"

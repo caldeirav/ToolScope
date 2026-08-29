@@ -1,0 +1,14 @@
+# Extra deps for the paper LangGraph + hosted-API protocol.
+# Install on top of eval/requirements.txt:
+#   pip install -r eval/paper/requirements.txt
+# Hosted models use any OpenAI-compatible /v1 endpoint (langchain-openai)
+# and optionally Google (langchain-google-genai).
+
+langchain>=0.3
+langgraph>=0.2
+langchain-openai>=0.2
+langchain-google-genai>=2.0
+langchain-core>=0.3
+python-dotenv>=1.0
+tenacity>=8.0
+typing_extensions>=4.8

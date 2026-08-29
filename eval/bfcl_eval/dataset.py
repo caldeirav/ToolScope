@@ -9,7 +9,7 @@ import ast
 import json
 import random
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -33,10 +33,15 @@ class BFCLEntry:
     messages: List[Dict]      # [{"role": "user", "content": "..."}]
     functions: List[Dict]     # OpenAI-format tool dicts
     ground_truth: List[Dict]  # [{"func_name": {"arg": val, ...}}, ...]
+    functions_bfcl: List[Dict] = field(default_factory=list)
+    possible_answer: Any = None
 
 
 def _download(url: str, dest: Path) -> None:
-    print(f"  Downloading {dest.name} ...")
+    label = dest.name
+    if dest.parent.name == "possible_answer":
+        label = f"possible_answer/{dest.name}"
+    print(f"  Downloading {label} ...")
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         with urllib.request.urlopen(url, timeout=30) as r:
@@ -235,11 +240,10 @@ def load_entries(
                 skipped += 1
                 continue
 
-            fns = q.get("function", [])
+            fns = [fn for fn in q.get("function", []) if isinstance(fn, dict)]
             openai_fns = [
                 t
                 for fn in fns
-                if isinstance(fn, dict)
                 for t in [_bfcl_fn_to_openai(fn)]
                 if t is not None
             ]
@@ -261,6 +265,8 @@ def load_entries(
                 messages=messages,
                 functions=openai_fns,
                 ground_truth=gt,
+                functions_bfcl=fns,
+                possible_answer=gt_raw,
             ))
 
     if skipped:
@@ -273,15 +279,56 @@ def load_entries(
     return entries
 
 
-def collect_all_tools(entries: List[BFCLEntry]) -> Dict[str, Dict]:
-    """Collect all unique tool definitions across entries (by name, first-seen wins)."""
+def collect_catalog(
+    entries: List[BFCLEntry],
+) -> Tuple[Dict[str, Dict], List[Dict[str, Any]]]:
+    """
+    Collect unique OpenAI-format tools across entries (name, first-seen wins).
+
+    Returns (tools_by_name, collisions). A collision is the same function name
+    with a different parameter schema; the first-seen definition is kept.
+    """
     all_tools: Dict[str, Dict] = {}
+    first_seen: Dict[str, str] = {}
+    collisions: List[Dict[str, Any]] = []
+
     for entry in entries:
         for tool in entry.functions:
             name = tool["function"]["name"]
             if name not in all_tools:
                 all_tools[name] = tool
-    return all_tools
+                first_seen[name] = entry.id
+                continue
+            existing = all_tools[name]["function"].get("parameters")
+            incoming = tool["function"].get("parameters")
+            if json.dumps(existing, sort_keys=True, default=str) != json.dumps(
+                incoming, sort_keys=True, default=str
+            ):
+                collisions.append({
+                    "name": name,
+                    "kept_entry_id": first_seen[name],
+                    "dropped_entry_id": entry.id,
+                    "kept_parameters": existing,
+                    "dropped_parameters": incoming,
+                })
+    return all_tools, collisions
+
+
+def collect_all_tools(entries: List[BFCLEntry]) -> Dict[str, Dict]:
+    """Collect all unique tool definitions across entries (by name, first-seen wins)."""
+    tools, _collisions = collect_catalog(entries)
+    return tools
+
+
+def write_collision_report(collisions: List[Dict[str, Any]], path: Path) -> None:
+    """Write schema-collision records as JSON (no-op when empty)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(collisions, indent=2, default=str), encoding="utf-8")
+
+
+def build_shared_catalog(all_tools: Dict[str, Dict]) -> List[Dict]:
+    """Return the full unique-tool catalog C used by the paper protocol."""
+    return list(all_tools.values())
 
 
 def build_distractor_pool(entries: List[BFCLEntry], seed: int = 42) -> List[Dict]:

@@ -1,0 +1,2171 @@
+[
+  {
+    "name": "math.factorial",
+    "kept_entry_id": "multiple_193",
+    "dropped_entry_id": "multiple_111",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "float",
+          "description": "The number for which factorial needs to be calculated."
+        }
+      },
+      "required": [
+        "number"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "integer",
+          "description": "The number for which factorial needs to be calculated."
+        }
+      },
+      "required": [
+        "number"
+      ]
+    }
+  },
+  {
+    "name": "geometry.area_triangle",
+    "kept_entry_id": "multiple_121",
+    "dropped_entry_id": "multiple_126",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "integer",
+          "description": "The length of the base of the triangle."
+        },
+        "height": {
+          "type": "integer",
+          "description": "The height of the triangle from the base."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The measurement unit for the area. Defaults to square meters."
+        }
+      },
+      "required": [
+        "base",
+        "height"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "type": "float",
+          "description": "The length of the base of the triangle."
+        },
+        "height": {
+          "type": "float",
+          "description": "The height of the triangle from the base."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The measurement unit for the area. Defaults to square meters."
+        }
+      },
+      "required": [
+        "base",
+        "height"
+      ]
+    }
+  },
+  {
+    "name": "find_recipe",
+    "kept_entry_id": "multiple_186",
+    "dropped_entry_id": "multiple_122",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "dietary_restrictions": {
+          "type": "string",
+          "description": "Dietary restrictions e.g. vegan, vegetarian, gluten free, dairy free."
+        },
+        "recipe_type": {
+          "type": "string",
+          "description": "Type of the recipe. E.g. dessert, main course, breakfast."
+        },
+        "time": {
+          "type": "integer",
+          "description": "Time limit in minutes to prep the meal."
+        }
+      },
+      "required": [
+        "dietary_restrictions",
+        "recipe_type",
+        "time"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "recipeName": {
+          "type": "string",
+          "description": "The recipe's name."
+        },
+        "maxCalories": {
+          "type": "integer",
+          "description": "The maximum calorie content of the recipe.",
+          "default": 1000
+        }
+      },
+      "required": [
+        "recipeName"
+      ]
+    }
+  },
+  {
+    "name": "currency_conversion",
+    "kept_entry_id": "multiple_44",
+    "dropped_entry_id": "multiple_52",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "float",
+          "description": "The amount to be converted."
+        },
+        "from_currency": {
+          "type": "string",
+          "description": "The currency to convert from."
+        },
+        "to_currency": {
+          "type": "string",
+          "description": "The currency to convert to."
+        }
+      },
+      "required": [
+        "amount",
+        "from_currency",
+        "to_currency"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "description": "The amount to be converted."
+        },
+        "from_currency": {
+          "type": "string",
+          "description": "The currency to convert from."
+        },
+        "to_currency": {
+          "type": "string",
+          "description": "The currency to convert to."
+        }
+      },
+      "required": [
+        "amount",
+        "from_currency",
+        "to_currency"
+      ]
+    }
+  },
+  {
+    "name": "unit_conversion.convert",
+    "kept_entry_id": "multiple_44",
+    "dropped_entry_id": "multiple_95",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "float",
+          "description": "The value to be converted."
+        },
+        "from_unit": {
+          "type": "string",
+          "description": "The unit to convert from."
+        },
+        "to_unit": {
+          "type": "string",
+          "description": "The unit to convert to."
+        }
+      },
+      "required": [
+        "value",
+        "from_unit",
+        "to_unit"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
+          "description": "The value to be converted."
+        },
+        "from_unit": {
+          "type": "string",
+          "description": "The unit to convert from."
+        },
+        "to_unit": {
+          "type": "string",
+          "description": "The unit to convert to."
+        }
+      },
+      "required": [
+        "value",
+        "from_unit",
+        "to_unit"
+      ]
+    }
+  },
+  {
+    "name": "get_sculpture_info",
+    "kept_entry_id": "multiple_160",
+    "dropped_entry_id": "multiple_161",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "artist_name": {
+          "type": "string",
+          "description": "The name of the artist."
+        },
+        "detail": {
+          "type": "boolean",
+          "description": "If True, it provides detailed description of the sculpture. Defaults to False."
+        }
+      },
+      "required": [
+        "artist_name"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "artist_name": {
+          "type": "string",
+          "description": "The name of the artist."
+        },
+        "year": {
+          "type": "integer",
+          "description": "Year of the sculpture. This is optional. Default 2024"
+        },
+        "detail": {
+          "type": "boolean",
+          "description": "If True, it provides detailed description of the sculpture. Defaults to False."
+        }
+      },
+      "required": [
+        "artist_name"
+      ]
+    }
+  },
+  {
+    "name": "calculate_displacement",
+    "kept_entry_id": "multiple_192",
+    "dropped_entry_id": "multiple_102",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_velocity": {
+          "type": "float",
+          "description": "The initial velocity of the object in m/s."
+        },
+        "time": {
+          "type": "float",
+          "description": "The time in seconds that the object has been in motion."
+        },
+        "acceleration": {
+          "type": "float",
+          "description": "The acceleration of the object in m/s^2.",
+          "default": 0
+        }
+      },
+      "required": [
+        "initial_velocity",
+        "time"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_velocity": {
+          "type": "integer",
+          "description": "The initial velocity of the object in m/s."
+        },
+        "time": {
+          "type": "integer",
+          "description": "The time in seconds that the object has been in motion."
+        },
+        "acceleration": {
+          "type": "float",
+          "description": "The acceleration of the object in m/s^2.",
+          "default": 0
+        }
+      },
+      "required": [
+        "initial_velocity",
+        "time"
+      ]
+    }
+  },
+  {
+    "name": "restaurant.find_nearby",
+    "kept_entry_id": "multiple_193",
+    "dropped_entry_id": "multiple_146",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Seattle, WA"
+        },
+        "cuisine": {
+          "type": "string",
+          "description": "Preferred type of cuisine in restaurant."
+        },
+        "max_distance": {
+          "type": "float",
+          "description": "Maximum distance (in miles) within which to search for restaurants. Default is 5."
+        }
+      },
+      "required": [
+        "location",
+        "cuisine"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Seattle, WA"
+        },
+        "cuisine": {
+          "type": "string",
+          "description": "Preferred type of cuisine in restaurant."
+        },
+        "max_distance": {
+          "type": "integer",
+          "description": "Maximum distance (in miles) within which to search for restaurants. Default is 5."
+        }
+      },
+      "required": [
+        "location",
+        "cuisine"
+      ]
+    }
+  },
+  {
+    "name": "lawsuits_search",
+    "kept_entry_id": "multiple_118",
+    "dropped_entry_id": "multiple_140",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location where the lawsuit was filed."
+        },
+        "year": {
+          "type": "integer",
+          "description": "The year when the lawsuit was filed."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "The type of the case. Options include: 'civil', 'criminal', 'small_claims', etc. If not specified, search for 'all' types by default."
+        }
+      },
+      "required": [
+        "company_name",
+        "location",
+        "year"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location where the lawsuit was filed."
+        },
+        "year": {
+          "type": "integer",
+          "description": "The year when the lawsuit was filed."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "The type of the case. Options include: 'civil', 'criminal', 'small_claims', etc. If not specified, search for all types. Default is 'all'"
+        }
+      },
+      "required": [
+        "company_name",
+        "location",
+        "year"
+      ]
+    }
+  },
+  {
+    "name": "find_instrument",
+    "kept_entry_id": "multiple_115",
+    "dropped_entry_id": "multiple_175",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "budget": {
+          "type": "float",
+          "description": "Your budget for the instrument."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of the instrument"
+        },
+        "make": {
+          "type": "string",
+          "description": "Maker of the instrument, Optional parameter. Default is 'all'"
+        }
+      },
+      "required": [
+        "budget",
+        "type"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "budget": {
+          "type": "float",
+          "description": "Your budget for the instrument."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of the instrument"
+        },
+        "make": {
+          "type": "string",
+          "description": "Maker of the instrument, Optional parameter. Default is ''"
+        }
+      },
+      "required": [
+        "budget",
+        "type"
+      ]
+    }
+  },
+  {
+    "name": "sports_ranking",
+    "kept_entry_id": "multiple_144",
+    "dropped_entry_id": "multiple_174",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "team": {
+          "type": "string",
+          "description": "The name of the team."
+        },
+        "league": {
+          "type": "string",
+          "description": "The name of the league."
+        },
+        "season": {
+          "type": "integer",
+          "description": "Optional parameter to specify the season, default is the current season."
+        }
+      },
+      "required": [
+        "team",
+        "league"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "team": {
+          "type": "string",
+          "description": "The name of the team."
+        },
+        "league": {
+          "type": "string",
+          "description": "The name of the league."
+        },
+        "season": {
+          "type": "integer",
+          "description": "Optional parameter to specify the season, default is the current season, 2024"
+        }
+      },
+      "required": [
+        "team",
+        "league"
+      ]
+    }
+  },
+  {
+    "name": "get_personality_traits",
+    "kept_entry_id": "multiple_125",
+    "dropped_entry_id": "multiple_99",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "hobby": {
+          "type": "string",
+          "description": "The hobby or activity of interest."
+        },
+        "trait_count": {
+          "type": "integer",
+          "description": "The number of top traits to return, default is 5"
+        }
+      },
+      "required": [
+        "hobby"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The personality type."
+        },
+        "traits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "strengths",
+              "weaknesses"
+            ]
+          },
+          "description": "List of traits to be retrieved, default is ['strengths', 'weaknesses']."
+        }
+      },
+      "required": [
+        "type"
+      ]
+    }
+  },
+  {
+    "name": "get_current_time",
+    "kept_entry_id": "multiple_148",
+    "dropped_entry_id": "multiple_98",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The name of the city."
+        },
+        "country": {
+          "type": "string",
+          "description": "The name of the country."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "The optional timezone to get current time. Default ''"
+        }
+      },
+      "required": [
+        "location",
+        "country"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "city": {
+          "type": "string",
+          "description": "The city for which the current time is to be retrieved."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country where the city is located."
+        },
+        "format": {
+          "type": "string",
+          "description": "The format in which the time is to be displayed, optional (defaults to 'HH:MM:SS')."
+        }
+      },
+      "required": [
+        "city",
+        "country"
+      ]
+    }
+  },
+  {
+    "name": "restaurant.find_nearby",
+    "kept_entry_id": "multiple_193",
+    "dropped_entry_id": "multiple_131",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Seattle, WA"
+        },
+        "cuisine": {
+          "type": "string",
+          "description": "Preferred type of cuisine in restaurant."
+        },
+        "max_distance": {
+          "type": "float",
+          "description": "Maximum distance (in miles) within which to search for restaurants. Default is 5."
+        }
+      },
+      "required": [
+        "location",
+        "cuisine"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Los Angeles, CA"
+        },
+        "dietary_preference": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Vegan",
+              "Vegetarian",
+              "Gluten-free",
+              "Dairy-free",
+              "Nut-free"
+            ]
+          },
+          "description": "Dietary preference. Default is empty array."
+        }
+      },
+      "required": [
+        "location"
+      ]
+    }
+  },
+  {
+    "name": "hotel_booking",
+    "kept_entry_id": "multiple_176",
+    "dropped_entry_id": "multiple_198",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city where you want to book the hotel."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "Type of the room required. Options: 'single', 'double', 'deluxe', etc."
+        },
+        "duration": {
+          "type": "integer",
+          "description": "The number of nights you want to book the hotel for."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The date when your stay begins."
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pet_friendly",
+              "gym",
+              "swimming_pool",
+              "free_breakfast",
+              "parking"
+            ]
+          },
+          "description": "Optional preferences of stay at the hotel. Default is empty array"
+        }
+      },
+      "required": [
+        "location",
+        "room_type",
+        "duration",
+        "start_date"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "hotel_name": {
+          "type": "string",
+          "description": "The name of the hotel."
+        },
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. New York, NY."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The start date of the reservation. Use format 'YYYY-MM-DD'."
+        },
+        "end_date": {
+          "type": "string",
+          "description": "The end date of the reservation. Use format 'YYYY-MM-DD'."
+        },
+        "rooms": {
+          "type": "integer",
+          "default": 1,
+          "description": "The number of rooms to reserve."
+        }
+      },
+      "required": [
+        "hotel_name",
+        "location",
+        "start_date",
+        "end_date"
+      ]
+    }
+  },
+  {
+    "name": "get_highest_scoring_player",
+    "kept_entry_id": "multiple_198",
+    "dropped_entry_id": "multiple_134",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "game": {
+          "type": "string",
+          "description": "The game in which you want to find the highest scoring player."
+        },
+        "season": {
+          "type": "string",
+          "description": "The season during which the high score was achieved."
+        },
+        "region": {
+          "type": "string",
+          "description": "The geographical region in which the game is being played (Optional). Default is 'all'"
+        }
+      },
+      "required": [
+        "game",
+        "season"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "game": {
+          "type": "string",
+          "description": "The game in which you want to find the highest scoring player."
+        },
+        "season": {
+          "type": "string",
+          "description": "The season during which the high score was achieved."
+        },
+        "region": {
+          "type": "string",
+          "description": "The geographical region in which the game is being played (Optional). Defaults to 'USA'"
+        }
+      },
+      "required": [
+        "game",
+        "season"
+      ]
+    }
+  },
+  {
+    "name": "currency_exchange.convert",
+    "kept_entry_id": "multiple_95",
+    "dropped_entry_id": "multiple_178",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "description": "The amount of money to be converted."
+        },
+        "from_currency": {
+          "type": "string",
+          "description": "The currency to convert from."
+        },
+        "to_currency": {
+          "type": "string",
+          "description": "The currency to convert to."
+        },
+        "live_conversion": {
+          "type": "boolean",
+          "description": "If true, use the latest exchange rate for conversion, else use the last known rate. Default false"
+        }
+      },
+      "required": [
+        "amount",
+        "from_currency",
+        "to_currency"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "base_currency": {
+          "type": "string",
+          "description": "The currency to convert from."
+        },
+        "target_currency": {
+          "type": "string",
+          "description": "The currency to convert to."
+        },
+        "amount": {
+          "type": "float",
+          "description": "The amount in base currency to convert"
+        }
+      },
+      "required": [
+        "base_currency",
+        "target_currency",
+        "amount"
+      ]
+    }
+  },
+  {
+    "name": "math.gcd",
+    "kept_entry_id": "multiple_101",
+    "dropped_entry_id": "multiple_34",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "num1": {
+          "type": "integer",
+          "description": "First number."
+        },
+        "num2": {
+          "type": "integer",
+          "description": "Second number."
+        }
+      },
+      "required": [
+        "num1",
+        "num2"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "num1": {
+          "type": "integer",
+          "description": "The first number."
+        },
+        "num2": {
+          "type": "integer",
+          "description": "The second number."
+        }
+      },
+      "required": [
+        "num1",
+        "num2"
+      ]
+    }
+  },
+  {
+    "name": "walmart.purchase",
+    "kept_entry_id": "multiple_113",
+    "dropped_entry_id": "multiple_169",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "loc": {
+          "type": "string",
+          "description": "Location of the nearest Walmart."
+        },
+        "product_list": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Items to be purchased listed in an array."
+        },
+        "pack_size": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Size of the product pack if applicable. The size of the array should be equal to product_list. Default is empty array."
+        }
+      },
+      "required": [
+        "loc",
+        "product_list"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "loc": {
+          "type": "string",
+          "description": "Location of the nearest Walmart."
+        },
+        "product_list": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Items to be purchased listed in an array."
+        },
+        "pack_size": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Size of the product pack if applicable. The size of the array should be equal to product_list. Default is an empty array"
+        }
+      },
+      "required": [
+        "loc",
+        "product_list"
+      ]
+    }
+  },
+  {
+    "name": "hotel_booking",
+    "kept_entry_id": "multiple_176",
+    "dropped_entry_id": "multiple_149",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city where you want to book the hotel."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "Type of the room required. Options: 'single', 'double', 'deluxe', etc."
+        },
+        "duration": {
+          "type": "integer",
+          "description": "The number of nights you want to book the hotel for."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The date when your stay begins."
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pet_friendly",
+              "gym",
+              "swimming_pool",
+              "free_breakfast",
+              "parking"
+            ]
+          },
+          "description": "Optional preferences of stay at the hotel. Default is empty array"
+        }
+      },
+      "required": [
+        "location",
+        "room_type",
+        "duration",
+        "start_date"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "hotel_name": {
+          "type": "string",
+          "description": "The name of the hotel."
+        },
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. New York, NY."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The start date of the reservation. Use format 'YYYY-MM-DD'."
+        },
+        "end_date": {
+          "type": "string",
+          "description": "The end date of the reservation. Use format 'YYYY-MM-DD'."
+        },
+        "rooms": {
+          "type": "integer",
+          "default": 1,
+          "description": "The number of rooms to reserve."
+        }
+      },
+      "required": [
+        "hotel_name",
+        "location",
+        "start_date",
+        "end_date"
+      ]
+    }
+  },
+  {
+    "name": "get_stock_price",
+    "kept_entry_id": "multiple_183",
+    "dropped_entry_id": "multiple_164",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "company_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The list of companies for which to retrieve the stock price."
+        }
+      },
+      "required": [
+        "company_names"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "Name of the company."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of when to get the stock price. Format: yyyy-mm-dd."
+        },
+        "exchange": {
+          "type": "string",
+          "description": "Name of the stock exchange market where the company's stock is listed. Default is 'NASDAQ'"
+        }
+      },
+      "required": [
+        "company_name",
+        "date"
+      ]
+    }
+  },
+  {
+    "name": "recipe_search",
+    "kept_entry_id": "multiple_184",
+    "dropped_entry_id": "multiple_89",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "dietary_restriction": {
+          "type": "string",
+          "description": "The dietary restriction, e.g., 'Vegetarian'."
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The list of ingredients."
+        },
+        "servings": {
+          "type": "integer",
+          "description": "The number of servings the recipe should make"
+        }
+      },
+      "required": [
+        "dietary_restriction",
+        "ingredients",
+        "servings"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of ingredients you want to use in the recipe."
+        },
+        "calories": {
+          "type": "integer",
+          "description": "The maximum number of calories for the recipe."
+        },
+        "meal": {
+          "type": "string",
+          "description": "Type of the meal for the recipe, it's optional and could be breakfast, lunch or dinner. Default 'lunch'"
+        }
+      },
+      "required": [
+        "ingredients",
+        "calories"
+      ]
+    }
+  },
+  {
+    "name": "calculate_bmi",
+    "kept_entry_id": "multiple_149",
+    "dropped_entry_id": "multiple_116",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer",
+          "description": "The weight of the person in kilograms."
+        },
+        "height": {
+          "type": "integer",
+          "description": "The height of the person in centimeters."
+        },
+        "system": {
+          "type": "string",
+          "description": "The system of units to be used, 'metric' or 'imperial'. Default is 'metric'."
+        }
+      },
+      "required": [
+        "weight",
+        "height"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer",
+          "description": "Weight of the person in kilograms."
+        },
+        "height": {
+          "type": "integer",
+          "description": "Height of the person in centimeters."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Optional parameter to choose between 'imperial' and 'metric' systems. Default is 'metric'."
+        }
+      },
+      "required": [
+        "weight",
+        "height"
+      ]
+    }
+  },
+  {
+    "name": "flight.book",
+    "kept_entry_id": "multiple_118",
+    "dropped_entry_id": "multiple_180",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "departure_location": {
+          "type": "string",
+          "description": "The location you are departing from."
+        },
+        "destination_location": {
+          "type": "string",
+          "description": "The location you are flying to."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the flight. Accepts standard date format e.g., 2022-04-28."
+        },
+        "time": {
+          "type": "string",
+          "description": "Preferred time of flight. Default is 'anytime'."
+        },
+        "direct_flight": {
+          "type": "boolean",
+          "description": "If set to true, only direct flights will be searched. Default is false"
+        }
+      },
+      "required": [
+        "departure_location",
+        "destination_location",
+        "date"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "departure_location": {
+          "type": "string",
+          "description": "The location you are departing from."
+        },
+        "destination_location": {
+          "type": "string",
+          "description": "The location you are flying to."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the flight. Accepts standard date format e.g., 2022-04-28."
+        },
+        "time": {
+          "type": "string",
+          "description": "Preferred time of flight. Default is ''"
+        },
+        "direct_flight": {
+          "type": "boolean",
+          "description": "If set to true, only direct flights will be searched. Default is false"
+        }
+      },
+      "required": [
+        "departure_location",
+        "destination_location",
+        "date"
+      ]
+    }
+  },
+  {
+    "name": "map_service.get_directions",
+    "kept_entry_id": "multiple_121",
+    "dropped_entry_id": "multiple_147",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "Starting location for the route."
+        },
+        "end": {
+          "type": "string",
+          "description": "Ending location for the route."
+        },
+        "avoid": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tolls",
+              "highways",
+              "ferries"
+            ]
+          },
+          "description": "Route features to avoid. Default is empty array."
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "Starting location for the route."
+        },
+        "end": {
+          "type": "string",
+          "description": "Ending location for the route."
+        },
+        "avoid": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tolls",
+              "highways",
+              "ferries"
+            ]
+          },
+          "description": "Route features to avoid. Default is an empty array."
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    }
+  },
+  {
+    "name": "library.search_book",
+    "kept_entry_id": "multiple_38",
+    "dropped_entry_id": "multiple_74",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "book_name": {
+          "type": "string",
+          "description": "The name of the book to search for."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city to search within."
+        },
+        "availability": {
+          "type": "boolean",
+          "description": "If true, search for available copies. If false or omitted, search for any copy regardless of availability. Default is false"
+        },
+        "genre": {
+          "type": "string",
+          "description": "The genre of the book to filter search (optional). Default is ''"
+        }
+      },
+      "required": [
+        "book_name",
+        "city"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the book to be searched."
+        },
+        "author": {
+          "type": "string",
+          "description": "The author of the book to ensure the precise book is fetched."
+        },
+        "platform": {
+          "type": "string",
+          "description": "The library where the book should be fetched from.",
+          "default": "all"
+        }
+      },
+      "required": [
+        "title",
+        "author"
+      ]
+    }
+  },
+  {
+    "name": "currency_conversion.convert",
+    "kept_entry_id": "multiple_192",
+    "dropped_entry_id": "multiple_17",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "description": "The amount to be converted."
+        },
+        "from_currency": {
+          "type": "string",
+          "description": "The currency to convert from."
+        },
+        "to_currency": {
+          "type": "string",
+          "description": "The currency to convert to."
+        }
+      },
+      "required": [
+        "amount",
+        "from_currency",
+        "to_currency"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "from_currency": {
+          "type": "string",
+          "description": "The currency that you want to convert from."
+        },
+        "to_currency": {
+          "type": "string",
+          "description": "The currency that you want to convert to."
+        },
+        "amount": {
+          "type": "float",
+          "description": "The amount of money that you want to convert."
+        }
+      },
+      "required": [
+        "from_currency",
+        "to_currency",
+        "amount"
+      ]
+    }
+  },
+  {
+    "name": "lawsuit_search",
+    "kept_entry_id": "multiple_123",
+    "dropped_entry_id": "multiple_137",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "The entity involved in lawsuits."
+        },
+        "county": {
+          "type": "string",
+          "description": "The jurisdiction for the lawsuit search."
+        },
+        "state": {
+          "type": "string",
+          "description": "The state for the lawsuit search. Default is California."
+        }
+      },
+      "required": [
+        "entity",
+        "county"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company": {
+          "type": "string",
+          "description": "The company related to the lawsuit."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "Start of the date range for when the lawsuit was filed."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location where the lawsuit was filed."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ongoing",
+            "settled",
+            "dismissed"
+          ],
+          "description": "The status of the lawsuit. Default is 'ongoing'."
+        }
+      },
+      "required": [
+        "company",
+        "start_date",
+        "location"
+      ]
+    }
+  },
+  {
+    "name": "hotel_booking",
+    "kept_entry_id": "multiple_176",
+    "dropped_entry_id": "multiple_117",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city where you want to book the hotel."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "Type of the room required. Options: 'single', 'double', 'deluxe', etc."
+        },
+        "duration": {
+          "type": "integer",
+          "description": "The number of nights you want to book the hotel for."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The date when your stay begins."
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pet_friendly",
+              "gym",
+              "swimming_pool",
+              "free_breakfast",
+              "parking"
+            ]
+          },
+          "description": "Optional preferences of stay at the hotel. Default is empty array"
+        }
+      },
+      "required": [
+        "location",
+        "room_type",
+        "duration",
+        "start_date"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city where you want to book the hotel."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "Type of the room required. Options: 'single', 'double', 'deluxe', etc."
+        },
+        "duration": {
+          "type": "integer",
+          "description": "The number of nights you want to book the hotel for."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The date when your stay begins."
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pet_friendly",
+              "gym",
+              "swimming_pool",
+              "free_breakfast",
+              "parking"
+            ]
+          },
+          "description": "Optional preferences of stay at the hotel. Default is empty array."
+        }
+      },
+      "required": [
+        "location",
+        "room_type",
+        "duration",
+        "start_date"
+      ]
+    }
+  },
+  {
+    "name": "sentiment_analysis",
+    "kept_entry_id": "multiple_149",
+    "dropped_entry_id": "multiple_67",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text on which to perform sentiment analysis."
+        },
+        "language": {
+          "type": "string",
+          "description": "The language in which the text is written."
+        }
+      },
+      "required": [
+        "text",
+        "language"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text whose sentiment is to be analyzed."
+        }
+      },
+      "required": [
+        "text"
+      ]
+    }
+  },
+  {
+    "name": "geometry.area_circle",
+    "kept_entry_id": "multiple_187",
+    "dropped_entry_id": "multiple_97",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "radius": {
+          "type": "float",
+          "description": "The radius of the circle."
+        },
+        "units": {
+          "type": "string",
+          "description": "The units in which the radius is measured (defaults to meters).",
+          "default": "meters"
+        }
+      },
+      "required": [
+        "radius"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "radius": {
+          "type": "integer",
+          "description": "The radius of the circle."
+        },
+        "units": {
+          "type": "string",
+          "description": "The units in which the radius is measured (defaults to meters).",
+          "default": "meters"
+        }
+      },
+      "required": [
+        "radius"
+      ]
+    }
+  },
+  {
+    "name": "book_hotel",
+    "kept_entry_id": "multiple_120",
+    "dropped_entry_id": "multiple_190",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "hotel_name": {
+          "type": "string",
+          "description": "The name of the hotel."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the hotel."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "The type of room preferred."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The starting date of the stay in format MM-DD-YYYY."
+        },
+        "stay_duration": {
+          "type": "integer",
+          "description": "The duration of the stay in days."
+        },
+        "view": {
+          "type": "string",
+          "description": "The preferred view from the room, can be ignored if no preference. If none provided, assumes no preference.",
+          "default": "No preference"
+        }
+      },
+      "required": [
+        "hotel_name",
+        "location",
+        "room_type",
+        "start_date",
+        "stay_duration"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "hotel_name": {
+          "type": "string",
+          "description": "The name of the hotel."
+        },
+        "location": {
+          "type": "string",
+          "description": "The city in which the hotel is located."
+        },
+        "room_type": {
+          "type": "string",
+          "description": "The type of room to be booked."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "The start date for the booking."
+        },
+        "nights": {
+          "type": "integer",
+          "description": "The number of nights for which the booking is to be made."
+        }
+      },
+      "required": [
+        "hotel_name",
+        "location",
+        "room_type",
+        "start_date",
+        "nights"
+      ]
+    }
+  },
+  {
+    "name": "calculate_displacement",
+    "kept_entry_id": "multiple_192",
+    "dropped_entry_id": "multiple_150",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_velocity": {
+          "type": "float",
+          "description": "The initial velocity of the object in m/s."
+        },
+        "time": {
+          "type": "float",
+          "description": "The time in seconds that the object has been in motion."
+        },
+        "acceleration": {
+          "type": "float",
+          "description": "The acceleration of the object in m/s^2.",
+          "default": 0
+        }
+      },
+      "required": [
+        "initial_velocity",
+        "time"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_velocity": {
+          "type": "float",
+          "description": "The initial velocity of the object in m/s."
+        },
+        "time": {
+          "type": "integer",
+          "description": "The time in seconds that the object has been in motion."
+        },
+        "acceleration": {
+          "type": "float",
+          "description": "The acceleration of the object in m/s^2.",
+          "default": 0
+        }
+      },
+      "required": [
+        "initial_velocity",
+        "time"
+      ]
+    }
+  },
+  {
+    "name": "calculate_density",
+    "kept_entry_id": "multiple_167",
+    "dropped_entry_id": "multiple_107",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "country": {
+          "type": "string",
+          "description": "The country for which the density needs to be calculated."
+        },
+        "year": {
+          "type": "string",
+          "description": "The year in which the density is to be calculated."
+        },
+        "population": {
+          "type": "integer",
+          "description": "The population of the country."
+        },
+        "land_area": {
+          "type": "float",
+          "description": "The land area of the country in square kilometers."
+        }
+      },
+      "required": [
+        "country",
+        "year",
+        "population",
+        "land_area"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "mass": {
+          "type": "integer",
+          "description": "The mass of the substance in kilograms."
+        },
+        "volume": {
+          "type": "integer",
+          "description": "The volume of the substance in cubic meters."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of density. Default is kg/m\u00b3"
+        }
+      },
+      "required": [
+        "mass",
+        "volume"
+      ]
+    }
+  },
+  {
+    "name": "get_personality_traits",
+    "kept_entry_id": "multiple_125",
+    "dropped_entry_id": "multiple_191",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "hobby": {
+          "type": "string",
+          "description": "The hobby or activity of interest."
+        },
+        "trait_count": {
+          "type": "integer",
+          "description": "The number of top traits to return, default is 5"
+        }
+      },
+      "required": [
+        "hobby"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "The personality type."
+        },
+        "traits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "strengths",
+              "weaknesses"
+            ]
+          },
+          "description": "List of traits to be retrieved, default is ['strengths', 'weaknesses']."
+        }
+      },
+      "required": [
+        "type"
+      ]
+    }
+  },
+  {
+    "name": "walmart.purchase",
+    "kept_entry_id": "multiple_113",
+    "dropped_entry_id": "multiple_197",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "loc": {
+          "type": "string",
+          "description": "Location of the nearest Walmart."
+        },
+        "product_list": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Items to be purchased listed in an array."
+        },
+        "pack_size": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Size of the product pack if applicable. The size of the array should be equal to product_list. Default is empty array."
+        }
+      },
+      "required": [
+        "loc",
+        "product_list"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "loc": {
+          "type": "string",
+          "description": "Location of the nearest Walmart."
+        },
+        "product_list": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Items to be purchased listed in an array."
+        },
+        "pack_size": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Size of the product pack if applicable. The size of the array should be equal to product_list. Default is an empty array"
+        }
+      },
+      "required": [
+        "loc",
+        "product_list"
+      ]
+    }
+  },
+  {
+    "name": "lawsuits_search",
+    "kept_entry_id": "multiple_118",
+    "dropped_entry_id": "multiple_129",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location where the lawsuit was filed."
+        },
+        "year": {
+          "type": "integer",
+          "description": "The year when the lawsuit was filed."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "The type of the case. Options include: 'civil', 'criminal', 'small_claims', etc. If not specified, search for 'all' types by default."
+        }
+      },
+      "required": [
+        "company_name",
+        "location",
+        "year"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location where the lawsuit was filed."
+        },
+        "year": {
+          "type": "integer",
+          "description": "The year when the lawsuit was filed."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "The type of the case. Options include: 'civil', 'criminal', 'small_claims', etc. If not specified, search for all types. Default is 'all'"
+        }
+      },
+      "required": [
+        "company_name",
+        "location",
+        "year"
+      ]
+    }
+  },
+  {
+    "name": "lawsuit_details.find",
+    "kept_entry_id": "multiple_105",
+    "dropped_entry_id": "multiple_139",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "Name of the company."
+        },
+        "year": {
+          "type": "integer",
+          "description": "Year of the lawsuit."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "Type of the lawsuit, e.g., 'IPR', 'Patent', 'Commercial', etc. This is an optional parameter. Default is 'all'"
+        }
+      },
+      "required": [
+        "company_name",
+        "year"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "description": "Name of the company."
+        },
+        "year": {
+          "type": "integer",
+          "description": "Year of the lawsuit."
+        },
+        "case_type": {
+          "type": "string",
+          "description": "Type of the lawsuit, e.g., 'IPR', 'Patent', 'Commercial', etc. This is an optional parameter. Default is 'all'."
+        }
+      },
+      "required": [
+        "company_name",
+        "year"
+      ]
+    }
+  },
+  {
+    "name": "calculate_cagr",
+    "kept_entry_id": "multiple_130",
+    "dropped_entry_id": "multiple_173",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_value": {
+          "type": "integer",
+          "description": "The initial investment value."
+        },
+        "final_value": {
+          "type": "integer",
+          "description": "The final investment value."
+        },
+        "period_in_years": {
+          "type": "integer",
+          "description": "The period of the investment in years."
+        }
+      },
+      "required": [
+        "initial_value",
+        "final_value",
+        "period_in_years"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "initial_value": {
+          "type": "float",
+          "description": "The initial investment value."
+        },
+        "final_value": {
+          "type": "float",
+          "description": "The final investment value."
+        },
+        "period_in_years": {
+          "type": "integer",
+          "description": "The period of the investment in years."
+        }
+      },
+      "required": [
+        "initial_value",
+        "final_value",
+        "period_in_years"
+      ]
+    }
+  },
+  {
+    "name": "restaurant.find_nearby",
+    "kept_entry_id": "multiple_193",
+    "dropped_entry_id": "multiple_62",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Seattle, WA"
+        },
+        "cuisine": {
+          "type": "string",
+          "description": "Preferred type of cuisine in restaurant."
+        },
+        "max_distance": {
+          "type": "float",
+          "description": "Maximum distance (in miles) within which to search for restaurants. Default is 5."
+        }
+      },
+      "required": [
+        "location",
+        "cuisine"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "The city and state, e.g. Boston, MA."
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Delivery",
+              "Outdoor Seating",
+              "Vegetarian Options"
+            ]
+          },
+          "description": "Preferred amenities in restaurant. Default empty array []"
+        }
+      },
+      "required": [
+        "location"
+      ]
+    }
+  },
+  {
+    "name": "magnetic_field.calculate",
+    "kept_entry_id": "multiple_41",
+    "dropped_entry_id": "multiple_6",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "I": {
+          "type": "integer",
+          "description": "The electric current flowing in Amperes."
+        },
+        "r": {
+          "type": "float",
+          "description": "The radial distance from the line of current in meters."
+        }
+      },
+      "required": [
+        "I",
+        "r"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "I": {
+          "type": "float",
+          "description": "The electric current flowing in Amperes."
+        },
+        "r": {
+          "type": "float",
+          "description": "The radial distance from the line of current in meters."
+        }
+      },
+      "required": [
+        "I",
+        "r"
+      ]
+    }
+  },
+  {
+    "name": "lawsuit_search",
+    "kept_entry_id": "multiple_123",
+    "dropped_entry_id": "multiple_163",
+    "kept_parameters": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "The entity involved in lawsuits."
+        },
+        "county": {
+          "type": "string",
+          "description": "The jurisdiction for the lawsuit search."
+        },
+        "state": {
+          "type": "string",
+          "description": "The state for the lawsuit search. Default is California."
+        }
+      },
+      "required": [
+        "entity",
+        "county"
+      ]
+    },
+    "dropped_parameters": {
+      "type": "object",
+      "properties": {
+        "company": {
+          "type": "string",
+          "description": "The company related to the lawsuit."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "Start of the date range for when the lawsuit was filed."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location where the lawsuit was filed."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ongoing",
+            "settled",
+            "dismissed"
+          ],
+          "description": "The status of the lawsuit. Default is 'ongoing'."
+        }
+      },
+      "required": [
+        "company",
+        "start_date",
+        "location"
+      ]
+    }
+  }
+]

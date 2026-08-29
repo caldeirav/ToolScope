@@ -124,9 +124,11 @@ class DummyModel:
         pass
 
     def predict(self, messages: List[Dict], tools: List[Dict]) -> str:
+        from bfcl_eval.tools import tool_name
+
         if not tools:
             return ""
-        name = tools[0]["function"]["name"]
+        name = tool_name(tools[0])
         return f'<tool_call>{{"name": "{name}", "arguments": {{}}}}</tool_call>'
 
     def parse_tool_call(self, raw: str) -> Optional[ParsedToolCall]:

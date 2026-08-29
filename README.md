@@ -297,6 +297,27 @@ examples/fastmcp/
 
 ---
 
+## Evaluation
+
+The `eval/` tree is a BFCL-based harness for **tool selection**, not a second product.
+
+It answers: does giving the model only the top-k retrieved tools beat binding a large catalog? Predictions are graded as static AST (no tool execution). You can run it on a local Hugging Face model or on **any OpenAI-compatible** chat-completions endpoint that supports `tools`.
+
+Two protocols share `eval/run_eval.py`:
+
+- **[eval/README.md](eval/README.md)** — install, runner, metrics, and the default *distractor-pool* protocol (`eval/config.yaml`). Start here.
+- **[eval/paper/README.md](eval/paper/README.md)** — *shared-catalog* protocol used for high-cardinality numbers: one catalog C for every query, Baseline vs BM25 vs ToolScope (`ToolSelector`), LangGraph one-turn `bind_tools`. Set `OPENAI_BASE_URL` and `OPENAI_API_KEY` in `.env` to point at any `/v1` server. Frozen k=10 results: [`eval/paper/artifacts/`](eval/paper/artifacts/).
+
+```bash
+pip install -e ".[st]"
+pip install -r eval/requirements.txt
+
+python eval/run_eval.py --dry-run --samples 20
+python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml --dry-run --samples 20
+```
+
+---
+
 ## Status & roadmap
 
 ToolScope is actively developed.
