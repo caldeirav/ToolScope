@@ -306,7 +306,7 @@ It answers: does giving the model only the top-k retrieved tools beat binding a 
 Two protocols share `eval/run_eval.py`:
 
 - **[eval/README.md](eval/README.md)** — install, runner, metrics, and the default *distractor-pool* protocol (`eval/config.yaml`). Start here.
-- **[eval/paper/README.md](eval/paper/README.md)** — *shared-catalog* protocol used for high-cardinality numbers: one catalog C for every query, Baseline vs BM25 vs ToolScope (`ToolSelector`), LangGraph one-turn `bind_tools`. Set `OPENAI_BASE_URL` and `OPENAI_API_KEY` in `.env` to point at any `/v1` server. Frozen k=10 results: [`eval/paper/artifacts/`](eval/paper/artifacts/).
+- **[eval/paper/README.md](eval/paper/README.md)** — *shared-catalog* protocol used for high-cardinality numbers: one catalog C for every query, Baseline vs BM25 vs ToolScope (`ToolSelector`), LangGraph one-turn `bind_tools`. Set `OPENAI_BASE_URL` and `OPENAI_API_KEY` in `.env` to point at any `/v1` server. Frozen k=10 results: [`eval/paper/artifacts/`](eval/paper/artifacts/) (`table.md`, `summary.csv`, [`harness_results.md`](eval/paper/artifacts/harness_results.md)).
 
 ```bash
 pip install -e ".[st]"

@@ -270,3 +270,221 @@ def test_env_example_lists_openai_compatible_endpoint():
         assert f"{name}=" in example
     assert "SCW_" not in example
 
+
+def test_mcnemar_exact_matches_known_values():
+    from bfcl_eval.harness_report import mcnemar_exact
+
+    assert mcnemar_exact(0, 0) == 1.0
+    p = mcnemar_exact(14, 3)
+    assert 0.01 < p < 0.02
+    assert mcnemar_exact(9, 7) > 0.5
+
+
+def test_harness_results_markdown_and_versioned_copy(tmp_path):
+    from bfcl_eval.evaluate import AggregateMetrics, RetrieverMetrics
+    from bfcl_eval.harness_report import render_harness_results
+    from bfcl_eval.report import write_paper_artifacts
+
+    def _rm(**kwargs):
+        defaults = dict(
+            name_acc=0.5,
+            exact_match=0.4,
+            ast_acc=0.4,
+            recall=1.0,
+            dcg=1.0,
+            ndcg=1.0,
+            mean_tokens=100.0,
+            mean_compression_rate=0.9,
+            mean_latency_ms=10.0,
+            delta_name_acc=0.25,
+            delta_exact_match=0.0,
+            delta_ast_acc=0.0,
+            error_counts={},
+        )
+        defaults.update(kwargs)
+        return RetrieverMetrics(**defaults)
+
+    metrics = {
+        "weak-model": AggregateMetrics(
+            n=4,
+            n_skipped=0,
+            baseline_name_acc=0.5,
+            baseline_exact_match=0.25,
+            baseline_ast_acc=0.25,
+            mean_baseline_tokens=1000.0,
+            mean_baseline_latency_ms=20.0,
+            retrievers={
+                "BM25": _rm(name_acc=0.5, delta_name_acc=0.0, ast_acc=0.25),
+                "ToolScope": _rm(name_acc=0.75, delta_name_acc=0.25, ast_acc=0.5),
+            },
+        )
+    }
+    instances = {
+        "weak-model": [
+            {
+                "id": "q1",
+                "query": "use alpha please",
+                "ground_truth_names": ["alpha"],
+                "baseline": {
+                    "name_acc": False,
+                    "ast_acc": False,
+                    "error": "wrong_tool",
+                    "predicted": {"name": "beta"},
+                    "latency_ms": 20,
+                },
+                "retrievers": {
+                    "BM25": {
+                        "name_acc": False,
+                        "ast_acc": False,
+                        "recall": 1.0,
+                        "error": "wrong_tool",
+                        "predicted": {"name": "beta"},
+                        "tool_names": ["alpha", "beta"],
+                        "latency_ms": 10,
+                    },
+                    "ToolScope": {
+                        "name_acc": True,
+                        "ast_acc": True,
+                        "recall": 1.0,
+                        "error": None,
+                        "predicted": {"name": "alpha"},
+                        "tool_names": ["alpha", "beta"],
+                        "latency_ms": 10,
+                    },
+                },
+            },
+            {
+                "id": "q2",
+                "query": "alpha again",
+                "ground_truth_names": ["alpha"],
+                "baseline": {
+                    "name_acc": True,
+                    "ast_acc": True,
+                    "error": None,
+                    "predicted": {"name": "alpha"},
+                    "latency_ms": 20,
+                },
+                "retrievers": {
+                    "BM25": {
+                        "name_acc": True,
+                        "ast_acc": True,
+                        "recall": 1.0,
+                        "error": None,
+                        "predicted": {"name": "alpha"},
+                        "tool_names": ["alpha"],
+                        "latency_ms": 10,
+                    },
+                    "ToolScope": {
+                        "name_acc": True,
+                        "ast_acc": True,
+                        "recall": 1.0,
+                        "error": None,
+                        "predicted": {"name": "alpha"},
+                        "tool_names": ["alpha"],
+                        "latency_ms": 10,
+                    },
+                },
+            },
+            {
+                "id": "q3",
+                "query": "still alpha",
+                "ground_truth_names": ["alpha"],
+                "baseline": {
+                    "name_acc": False,
+                    "ast_acc": False,
+                    "error": "wrong_tool",
+                    "predicted": {"name": "gamma"},
+                    "latency_ms": 20,
+                },
+                "retrievers": {
+                    "BM25": {
+                        "name_acc": False,
+                        "ast_acc": False,
+                        "recall": 1.0,
+                        "error": "wrong_tool",
+                        "predicted": {"name": "gamma"},
+                        "tool_names": ["alpha", "gamma"],
+                        "latency_ms": 10,
+                    },
+                    "ToolScope": {
+                        "name_acc": True,
+                        "ast_acc": False,
+                        "recall": 1.0,
+                        "error": "bad_args",
+                        "predicted": {"name": "alpha"},
+                        "tool_names": ["alpha", "gamma"],
+                        "latency_ms": 10,
+                    },
+                },
+            },
+            {
+                "id": "q4",
+                "query": "alpha last",
+                "ground_truth_names": ["alpha"],
+                "baseline": {
+                    "name_acc": True,
+                    "ast_acc": False,
+                    "error": "bad_args",
+                    "predicted": {"name": "alpha"},
+                    "latency_ms": 20,
+                },
+                "retrievers": {
+                    "BM25": {
+                        "name_acc": True,
+                        "ast_acc": False,
+                        "recall": 0.0,
+                        "error": "bad_args",
+                        "predicted": {"name": "alpha"},
+                        "tool_names": ["other"],
+                        "latency_ms": 10,
+                    },
+                    "ToolScope": {
+                        "name_acc": False,
+                        "ast_acc": False,
+                        "recall": 1.0,
+                        "error": "wrong_tool",
+                        "predicted": {"name": "other"},
+                        "tool_names": ["alpha", "other"],
+                        "latency_ms": 10,
+                    },
+                },
+            },
+        ]
+    }
+
+    md = render_harness_results(
+        metrics,
+        instances,
+        k=10,
+        catalog_size=50,
+        protocol="shared_catalog",
+        embedder="minilm",
+        catalog_names=["alpha", "car.rental", "car_rental"],
+    )
+    assert "harness results" in md.lower()
+    assert "Tool name accuracy" in md
+    assert "McNemar" in md
+    assert "+2 / −1" in md
+    assert "McNemar p" in md
+    assert "`car.rental` / `car_rental`" in md or "car.rental" in md
+    assert "What this supports for the paper" in md
+
+    live = tmp_path / "live"
+    frozen = tmp_path / "frozen"
+    write_paper_artifacts(
+        all_metrics=metrics,
+        output_dir=live,
+        k=10,
+        catalog_size=50,
+        protocol="shared_catalog",
+        all_instances=instances,
+        catalog_names=["alpha", "car.rental", "car_rental"],
+        embedder="minilm",
+        versioned_dir=frozen,
+    )
+    assert (live / "harness_results.md").is_file()
+    assert (frozen / "harness_results.md").is_file()
+    assert (frozen / "table.md").is_file()
+    assert (frozen / "summary.csv").is_file()
+    assert "weak-model" in (frozen / "harness_results.md").read_text()
+

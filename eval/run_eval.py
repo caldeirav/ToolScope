@@ -371,6 +371,26 @@ def _load_metrics_from_json(path: Path) -> AggregateMetrics:
     )
 
 
+def _best_result_json(output_dir: Path, model_name: str) -> Path | None:
+    """Largest-n result JSON for a model slug; break ties by mtime."""
+    slug = model_name.split("/")[-1].replace(" ", "_")
+    best = None
+    best_n = -1
+    best_mtime = -1.0
+    for path in output_dir.glob(f"bfcl_eval_{slug}_*.json"):
+        try:
+            with open(path, encoding="utf-8") as f:
+                n = int((json.load(f).get("metrics") or {}).get("n") or -1)
+        except Exception:
+            continue
+        mtime = path.stat().st_mtime
+        if n > best_n or (n == best_n and mtime > best_mtime):
+            best = path
+            best_n = n
+            best_mtime = mtime
+    return best
+
+
 def _load_dotenv() -> None:
     try:
         from dotenv import load_dotenv
@@ -416,6 +436,7 @@ def main() -> None:
     embed_provider    = embed_cfg.get("provider", "sentence-transformers")
     embed_allow_dl    = embed_cfg.get("allow_download", True)
     output_dir        = Path(out_cfg.get("results_dir", "eval/results"))
+    versioned_dir_cfg = out_cfg.get("versioned_dir")
     verbose           = out_cfg.get("verbose", False)
     cache_dir         = Path(ds_cfg.get("cache_dir", "eval/.bfcl_cache"))
     protocol          = ds_cfg.get("protocol") or (
@@ -464,6 +485,12 @@ def main() -> None:
 
     catalog_size = len(all_tools)
     tool_list = list(all_tools.values())
+    catalog_names = []
+    try:
+        from bfcl_eval.tools import tool_name as _tool_name
+        catalog_names = [_tool_name(t) for t in tool_list]
+    except Exception:
+        catalog_names = list(all_tools.keys())
     shared_pool = tool_list if protocol == "shared_catalog" else None
     ckpt_pool_size = catalog_size if protocol == "shared_catalog" else int(pool_size or 100)
 
@@ -760,6 +787,18 @@ def main() -> None:
             ordered[mname] = metrics
     all_metrics = ordered
 
+    all_instances: dict[str, list] = {}
+    for mname in all_metrics:
+        path = _best_result_json(output_dir, mname)
+        if path is None:
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+            all_instances[mname] = payload.get("instances") or []
+        except Exception:
+            print(f"  Warning: could not load instance traces for {mname}")
+
     if len(all_metrics) >= 2:
         print_cross_model_summary(
             all_metrics=all_metrics,
@@ -767,12 +806,27 @@ def main() -> None:
         )
 
     if protocol == "shared_catalog" and all_metrics:
+        freeze_dir = None
+        if versioned_dir_cfg and not args.dry_run and not samples:
+            freeze_dir = Path(versioned_dir_cfg)
+        elif versioned_dir_cfg and (args.dry_run or samples):
+            print(
+                "  Note: skipping versioned artifacts "
+                "(dry-run or --samples). Full runs copy table.md, "
+                "summary.csv, and harness_results.md to "
+                f"{versioned_dir_cfg}."
+            )
         write_paper_artifacts(
             all_metrics=all_metrics,
             output_dir=output_dir,
             k=k,
             catalog_size=catalog_size,
             protocol=protocol,
+            all_instances=all_instances,
+            collisions=collisions,
+            catalog_names=catalog_names,
+            embedder=str(embed_model or ""),
+            versioned_dir=freeze_dir,
         )
 
 

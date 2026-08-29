@@ -315,8 +315,14 @@ def write_paper_artifacts(
     k: int,
     catalog_size: int,
     protocol: str,
+    *,
+    all_instances: Optional[Dict[str, List[dict]]] = None,
+    collisions: Optional[List[dict]] = None,
+    catalog_names: Optional[List[str]] = None,
+    embedder: str = "",
+    versioned_dir: Optional[Path] = None,
 ) -> None:
-    """Write summary.csv and table.md for the paper protocol."""
+    """Write summary.csv, table.md, and harness_results.md for the paper protocol."""
     import csv
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -417,4 +423,25 @@ def write_paper_artifacts(
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"  Paper table → {md_path}")
     print(f"  Paper CSV   → {csv_path}")
+
+    from .harness_report import freeze_paper_artifacts, write_harness_results
+
+    harness_path = output_dir / "harness_results.md"
+    write_harness_results(
+        harness_path,
+        all_metrics,
+        all_instances or {},
+        k=k,
+        catalog_size=catalog_size,
+        protocol=protocol,
+        embedder=embedder,
+        collisions=collisions,
+        catalog_names=catalog_names,
+    )
+    print(f"  Harness results → {harness_path}")
+
+    if versioned_dir is not None:
+        copied = freeze_paper_artifacts(output_dir, Path(versioned_dir))
+        for dest in copied:
+            print(f"  Versioned     → {dest}")
 

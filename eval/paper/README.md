@@ -125,13 +125,14 @@ Runtime files go to gitignored `eval/results/paper/`:
 | `bfcl_eval_{model}_{timestamp}.json` | Per-query traces and aggregates |
 | `summary.csv` | One row per (model × condition) |
 | `table.md` | Name accuracy, AST accuracy, compression |
+| `harness_results.md` | Full analysis (name/AST, McNemar, error taxonomy, flips, catalog hazards) |
 | `tool_name_collisions.json` | Duplicate BFCL names with differing schemas |
 | `checkpoints/*.jsonl` | Resume log |
 | `logs/*_errors.log` | Instances that threw before fail-close |
 
-A single-model rerun still **merges** sibling result JSONs into `summary.csv` / `table.md`, so you can finish Gemini without re-running the OpenAI-compatible models.
+A single-model rerun still **merges** sibling result JSONs into `summary.csv` / `table.md` / `harness_results.md`, so you can finish Gemini without re-running the OpenAI-compatible models.
 
-The **k=10 run of record** is checked in under [`artifacts/`](artifacts/) (host URLs stripped). Follow-up work (k-ablation, McNemar, collision sensitivity) is in [`next-experiments.md`](next-experiments.md).
+A **full** paper run (not `--dry-run`, not `--samples`) also copies `table.md`, `summary.csv`, and `harness_results.md` to [`artifacts/`](artifacts/) (`output.versioned_dir`). That is the git-tracked snapshot. Per-model JSON traces stay gitignored under `eval/results/paper/` because they can contain host URLs.
 
 ---
 

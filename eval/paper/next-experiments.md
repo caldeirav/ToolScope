@@ -91,8 +91,7 @@ Not blockers for the current split:
 
 ## Implementation order
 
-1. `stats_from_artifacts.py` + tests (Experiment 0). Extend `write_paper_artifacts`
-   or emit `artifacts/stats.md` with McNemar and the n=175 collision slice.
+1. McNemar and the n=175 collision slice are generated into `harness_results.md` on every paper eval. Keep that file in sync by running the full protocol (it copies into `eval/paper/artifacts/`). Add Wilson CIs later if a reviewer asks.
 2. `--skip-baseline` / `--conditions` in `eval/run_eval.py` and
    `evaluate_instance`.
 3. Nested top-`k_max` retrieve with prefix scoring, or a thin driver

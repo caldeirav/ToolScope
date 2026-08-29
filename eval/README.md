@@ -156,8 +156,7 @@ Under `eval/results/` (or `eval/results/paper/` for the paper YAML):
 
 - `bfcl_eval_{model}_{timestamp}.json` — config, aggregates, per-instance traces
 - `checkpoints/` — JSONL resume files (protocol and catalog size are part of the key, so a smoke run cannot resume into a full run)
-- Paper YAML also writes `summary.csv`, `table.md`, and `tool_name_collisions.json`
-- The frozen k=10 matrix (n=200, three models) is checked in at [`eval/paper/artifacts/`](paper/artifacts/)
+- Paper YAML also writes `summary.csv`, `table.md`, `harness_results.md`, and `tool_name_collisions.json`. A full (non-dry, unsampled) run copies the first three into [`eval/paper/artifacts/`](paper/artifacts/).
 
 ---
 

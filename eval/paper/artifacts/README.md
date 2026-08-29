@@ -35,5 +35,4 @@ Retrieval (identical across models): BM25 Recall@10 **97.0%** / NDCG **0.881**;
 ToolScope Recall@10 **98.5%** / NDCG **0.885**. Compression **97.7%**
 (~60,051 → ~1,362–1,401 prompt tokens).
 
-See [table.md](table.md) and [summary.csv](summary.csv) for the generator output,
-and [../next-experiments.md](../next-experiments.md) for the follow-up plan.
+See [harness_results.md](harness_results.md) for the analysis (name/AST, McNemar, error taxonomy, flips). [table.md](table.md) and [summary.csv](summary.csv) are the compact matrix. Follow-up experiments: [../next-experiments.md](../next-experiments.md).

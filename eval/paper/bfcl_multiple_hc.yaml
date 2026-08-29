@@ -41,4 +41,7 @@ toolscope:
 
 output:
   results_dir: eval/results/paper
+  # Full (non-dry, unsampled) runs copy table.md, summary.csv, and
+  # harness_results.md here so the analysis is git-tracked.
+  versioned_dir: eval/paper/artifacts
   verbose: false
