@@ -16,10 +16,9 @@ model:
     - name: "Qwen/Qwen2.5-1.5B-Instruct"   #  ~3 GB bfloat16
     - name: "ibm-granite/granite-4.1-8b"    # ~16 GB — GQA, no sliding window, 128K context
     - name: "Qwen/Qwen2.5-7B-Instruct"     # ~14 GB — strong tool caller
-    # Remote model example (uncomment and adjust):
+    # Remote: OPENAI_BASE_URL + OPENAI_API_KEY in .env, or per-entry:
     # - name: "Qwen/Qwen2.5-72B-Instruct"
     #   backend: "openai"
-    #   base_url: "http://my-server:8000/v1"
 
 dataset:
   categories:

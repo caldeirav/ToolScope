@@ -1,16 +1,21 @@
 """
 Per-instance evaluation and metric aggregation.
 
-InstanceResult stores a baseline result (model sees the full per-instance pool)
+InstanceResult stores a baseline result (model sees the full catalog / pool)
 plus one RetrieverResult per retriever (model sees only the retriever's top-k).
 """
 
+from __future__ import annotations
+
 import json
 import math
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from .ast_score import compute_ast_valid
 from .model import ParsedToolCall
+from .tools import tool_name, tools_to_openai
 
 
 # ── Per-instance result structures ─────────────────────────────────────────
@@ -21,6 +26,7 @@ class RetrieverResult:
     """All metrics for one retriever on one evaluation instance."""
     name_acc: bool
     exact_match: bool
+    ast_acc: bool
     recall: float           # fraction of GT tools present in top-k
     dcg: float              # discounted cumulative gain at k
     ndcg: float             # normalized DCG (0–1); equals DCG for single-GT entries
@@ -30,6 +36,9 @@ class RetrieverResult:
     compression_rate: float # 1 - tokens / baseline_tokens
     raw: str                # raw model output for debugging
     predicted: Optional[ParsedToolCall]
+    error: Optional[str] = None
+    latency_ms: float = 0.0
+    prompt_tokens: Optional[int] = None
 
 
 @dataclass
@@ -38,15 +47,17 @@ class InstanceResult:
     query: str                    # first user message, truncated for display
     ground_truth_names: List[str]
 
-    # Baseline: model sees the full per-instance pool (pool_size tools)
     baseline_name_acc: bool
     baseline_exact_match: bool
+    baseline_ast_acc: bool
     baseline_tokens: int
     baseline_raw: str
     baseline_pred: Optional[ParsedToolCall]
+    baseline_error: Optional[str] = None
+    baseline_latency_ms: float = 0.0
+    baseline_prompt_tokens: Optional[int] = None
 
-    # One entry per configured retriever
-    retrievers: Dict[str, RetrieverResult]
+    retrievers: Dict[str, RetrieverResult] = field(default_factory=dict)
 
 
 # ── Aggregate metric structures ─────────────────────────────────────────────
@@ -57,13 +68,17 @@ class RetrieverMetrics:
     """Aggregate metrics for one retriever across all evaluated instances."""
     name_acc: float
     exact_match: float
+    ast_acc: float
     recall: float
     dcg: float
     ndcg: float
     mean_tokens: float
     mean_compression_rate: float
-    delta_name_acc: float    # retriever - baseline (positive = retriever helps)
+    mean_latency_ms: float
+    delta_name_acc: float
     delta_exact_match: float
+    delta_ast_acc: float
+    error_counts: Dict[str, int]
 
 
 @dataclass
@@ -72,7 +87,9 @@ class AggregateMetrics:
     n_skipped: int
     baseline_name_acc: float
     baseline_exact_match: float
+    baseline_ast_acc: float
     mean_baseline_tokens: float
+    mean_baseline_latency_ms: float
     retrievers: Dict[str, RetrieverMetrics]
 
 
@@ -151,8 +168,6 @@ def compute_dcg(
     DCG@k  = sum_i  relevance_i / log2(rank_i + 1)   for each GT tool found
     IDCG@k = ideal DCG (all n_gt GT tools at ranks 1..n_gt)
     NDCG@k = DCG / IDCG  → [0, 1]
-
-    For simple/multiple categories (single GT call), IDCG = 1.0 so NDCG = DCG.
     """
     if not gt_names:
         return 0.0, 0.0, None
@@ -175,9 +190,60 @@ def compute_dcg(
     return dcg, ndcg, first_rank
 
 
-def _approx_tokens(tools: List[Dict]) -> int:
-    """Approximate token count: JSON character length / 4."""
-    return max(1, len(json.dumps(tools, ensure_ascii=False)) // 4)
+def classify_error(
+    *,
+    pred: Optional[ParsedToolCall],
+    raw: str,
+    name_acc: bool,
+    ast_acc: bool,
+    gt_names: List[str],
+    retrieved_names: Optional[List[str]],
+) -> Optional[str]:
+    if name_acc and ast_acc:
+        return None
+    if pred is None:
+        if raw and raw.strip():
+            return "parse_fail"
+        return "no_call"
+    if retrieved_names is not None and gt_names:
+        if not any(n in set(retrieved_names) for n in gt_names):
+            return "retrieval_miss"
+    if pred.name not in gt_names:
+        return "wrong_tool"
+    if not ast_acc:
+        return "bad_args"
+    return None
+
+
+def _approx_tokens(tools: List[Any]) -> int:
+    openai = tools_to_openai(tools) if tools else []
+    return max(1, len(json.dumps(openai, ensure_ascii=False)) // 4)
+
+
+def _normalize_predict(model: Any, messages: List[Dict], tools: List[Any]):
+    from .agent import PredictResult
+
+    t0 = time.monotonic()
+    try:
+        out = model.predict(messages, tools)
+    except Exception:
+        return PredictResult(
+            raw="",
+            predicted=None,
+            latency_ms=(time.monotonic() - t0) * 1000,
+            native_tools=True,
+            error="api_fail",
+        )
+    latency_ms = (time.monotonic() - t0) * 1000
+    if isinstance(out, PredictResult):
+        return out
+    raw = out if isinstance(out, str) else str(out or "")
+    return PredictResult(
+        raw=raw,
+        predicted=model.parse_tool_call(raw),
+        latency_ms=latency_ms,
+        native_tools=True,
+    )
 
 
 # ── Core evaluation ─────────────────────────────────────────────────────────
@@ -191,23 +257,43 @@ def _run_retriever(
     baseline_tokens: int,
     model: Any,
     k: int,
+    possible_answer: Any = None,
+    functions_bfcl: Optional[List[Dict]] = None,
 ) -> RetrieverResult:
     """Run one retriever against one instance and compute all metrics."""
-    # OracleRetriever (and any future GT-aware retriever) needs the GT up front
     if hasattr(retriever, "set_ground_truth"):
         retriever.set_ground_truth(gt_names)
 
     r_tools = retriever.filter(messages, k=k)
-    r_names = [t["function"]["name"] for t in r_tools]
+    r_names = [tool_name(t) for t in r_tools]
     r_tokens = _approx_tokens(r_tools) if r_tools else 0
-    r_raw = model.predict(messages, r_tools) if r_tools else ""
-    r_pred = model.parse_tool_call(r_raw) if r_tools else None
+    pred_res = (
+        _normalize_predict(model, messages, r_tools)
+        if r_tools
+        else None
+    )
+    r_raw = pred_res.raw if pred_res else ""
+    r_pred = pred_res.predicted if pred_res else None
     r_dcg, r_ndcg, r_gt_rank = compute_dcg(gt_names, r_names)
     compression = 1.0 - (r_tokens / baseline_tokens) if baseline_tokens > 0 else 0.0
+    name_acc = compute_name_acc(r_pred, gt_names)
+    exact = compute_exact_match(r_pred, ground_truth, gt_names)
+    ast_ok = compute_ast_valid(
+        r_pred, possible_answer, func_descriptions=functions_bfcl
+    ) if possible_answer is not None else exact
+    error = (pred_res.error if pred_res and pred_res.error else classify_error(
+        pred=r_pred,
+        raw=r_raw,
+        name_acc=name_acc,
+        ast_acc=ast_ok,
+        gt_names=gt_names,
+        retrieved_names=r_names,
+    ))
 
     return RetrieverResult(
-        name_acc=compute_name_acc(r_pred, gt_names),
-        exact_match=compute_exact_match(r_pred, ground_truth, gt_names),
+        name_acc=name_acc,
+        exact_match=exact,
+        ast_acc=ast_ok,
         recall=compute_recall(gt_names, r_names),
         dcg=r_dcg,
         ndcg=r_ndcg,
@@ -217,6 +303,9 @@ def _run_retriever(
         compression_rate=compression,
         raw=r_raw,
         predicted=r_pred,
+        error=error,
+        latency_ms=pred_res.latency_ms if pred_res else 0.0,
+        prompt_tokens=pred_res.prompt_tokens if pred_res else None,
     )
 
 
@@ -224,17 +313,18 @@ def evaluate_instance(
     entry_id: str,
     messages: List[Dict],
     ground_truth: List[Dict],
-    tool_pool: List[Dict],
+    tool_pool: List[Any],
     model: Any,
     retrievers: Dict[str, Any],
     k: int,
+    possible_answer: Any = None,
+    functions_bfcl: Optional[List[Dict]] = None,
 ) -> Optional[InstanceResult]:
     """
     Run one evaluation instance.
 
-    Baseline: model sees all pool_size tools (per-instance pool).
-    Each retriever: model sees only its top-k tools from the global index.
-    Returns None if the entry has no parseable ground truth names.
+    Baseline: model sees the full tool_pool (shared catalog C, or per-instance pool).
+    Each retriever: model sees only its top-k tools from the same catalog.
     """
     gt_names = _gt_names(ground_truth)
     if not gt_names:
@@ -245,63 +335,120 @@ def evaluate_instance(
     )[:200]
 
     baseline_tokens = _approx_tokens(tool_pool)
-    baseline_raw = model.predict(messages, tool_pool)
-    baseline_pred = model.parse_tool_call(baseline_raw)
+    base_res = _normalize_predict(model, messages, tool_pool)
+    baseline_pred = base_res.predicted
+    name_acc = compute_name_acc(baseline_pred, gt_names)
+    exact = compute_exact_match(baseline_pred, ground_truth, gt_names)
+    ast_ok = compute_ast_valid(
+        baseline_pred, possible_answer, func_descriptions=functions_bfcl
+    ) if possible_answer is not None else exact
 
-    retriever_results: Dict[str, RetrieverResult] = {
-        rname: _run_retriever(
-            retriever, messages, ground_truth, gt_names,
-            baseline_tokens, model, k
+    retriever_results: Dict[str, RetrieverResult] = {}
+    for rname, retriever in retrievers.items():
+        try:
+            retriever_results[rname] = _run_retriever(
+                retriever, messages, ground_truth, gt_names,
+                baseline_tokens, model, k,
+                possible_answer=possible_answer,
+                functions_bfcl=functions_bfcl,
+            )
+        except Exception:
+            retriever_results[rname] = RetrieverResult(
+                name_acc=False,
+                exact_match=False,
+                ast_acc=False,
+                recall=0.0,
+                dcg=0.0,
+                ndcg=0.0,
+                gt_rank=None,
+                tool_names=[],
+                tokens=0,
+                compression_rate=0.0,
+                raw="",
+                predicted=None,
+                error="api_fail",
+            )
+
+    baseline_error = (
+        base_res.error
+        if base_res.error
+        else classify_error(
+            pred=baseline_pred,
+            raw=base_res.raw,
+            name_acc=name_acc,
+            ast_acc=ast_ok,
+            gt_names=gt_names,
+            retrieved_names=[tool_name(t) for t in tool_pool],
         )
-        for rname, retriever in retrievers.items()
-    }
+    )
 
     return InstanceResult(
         id=entry_id,
         query=query,
         ground_truth_names=gt_names,
-        baseline_name_acc=compute_name_acc(baseline_pred, gt_names),
-        baseline_exact_match=compute_exact_match(baseline_pred, ground_truth, gt_names),
+        baseline_name_acc=name_acc,
+        baseline_exact_match=exact,
+        baseline_ast_acc=ast_ok,
         baseline_tokens=baseline_tokens,
-        baseline_raw=baseline_raw,
+        baseline_raw=base_res.raw,
         baseline_pred=baseline_pred,
+        baseline_error=baseline_error,
+        baseline_latency_ms=base_res.latency_ms,
+        baseline_prompt_tokens=base_res.prompt_tokens,
         retrievers=retriever_results,
     )
 
 
+def _error_counts(errors: List[Optional[str]]) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for e in errors:
+        if e:
+            counts[e] = counts.get(e, 0) + 1
+    return counts
+
+
 def aggregate(results: List[InstanceResult], n_skipped: int) -> AggregateMetrics:
     n = len(results)
+    empty_retrievers: Dict[str, RetrieverMetrics] = {}
     if n == 0:
         return AggregateMetrics(
             n=0, n_skipped=n_skipped,
-            baseline_name_acc=0.0, baseline_exact_match=0.0,
-            mean_baseline_tokens=0.0, retrievers={},
+            baseline_name_acc=0.0, baseline_exact_match=0.0, baseline_ast_acc=0.0,
+            mean_baseline_tokens=0.0, mean_baseline_latency_ms=0.0,
+            retrievers=empty_retrievers,
         )
 
     b_name   = sum(r.baseline_name_acc   for r in results) / n
     b_exact  = sum(r.baseline_exact_match for r in results) / n
+    b_ast    = sum(getattr(r, "baseline_ast_acc", r.baseline_exact_match) for r in results) / n
     b_tokens = sum(r.baseline_tokens      for r in results) / n
+    b_lat    = sum(getattr(r, "baseline_latency_ms", 0.0) for r in results) / n
 
-    rnames = list(results[0].retrievers.keys())
+    rnames = list((results[0].retrievers or {}).keys())
     retriever_metrics: Dict[str, RetrieverMetrics] = {}
 
     for rname in rnames:
-        rr = [r.retrievers[rname] for r in results if rname in r.retrievers]
+        rr = [r.retrievers[rname] for r in results if r.retrievers and rname in r.retrievers]
         nr = len(rr)
         if nr == 0:
             continue
         r_name_acc = sum(r.name_acc    for r in rr) / nr
         r_exact    = sum(r.exact_match for r in rr) / nr
+        r_ast      = sum(getattr(r, "ast_acc", r.exact_match) for r in rr) / nr
         retriever_metrics[rname] = RetrieverMetrics(
             name_acc=r_name_acc,
             exact_match=r_exact,
+            ast_acc=r_ast,
             recall=sum(r.recall            for r in rr) / nr,
             dcg=sum(r.dcg                  for r in rr) / nr,
             ndcg=sum(r.ndcg                for r in rr) / nr,
             mean_tokens=sum(r.tokens       for r in rr) / nr,
             mean_compression_rate=sum(r.compression_rate for r in rr) / nr,
+            mean_latency_ms=sum(getattr(r, "latency_ms", 0.0) for r in rr) / nr,
             delta_name_acc=r_name_acc - b_name,
             delta_exact_match=r_exact - b_exact,
+            delta_ast_acc=r_ast - b_ast,
+            error_counts=_error_counts([getattr(r, "error", None) for r in rr]),
         )
 
     return AggregateMetrics(
@@ -309,6 +456,8 @@ def aggregate(results: List[InstanceResult], n_skipped: int) -> AggregateMetrics
         n_skipped=n_skipped,
         baseline_name_acc=b_name,
         baseline_exact_match=b_exact,
+        baseline_ast_acc=b_ast,
         mean_baseline_tokens=b_tokens,
+        mean_baseline_latency_ms=b_lat,
         retrievers=retriever_metrics,
     )

@@ -17,9 +17,16 @@ env/
 .vscode/
 *.iml
 
-# Eval: downloaded data and results
+# Eval: downloaded data and live run output (the k=10 snapshot is
+# checked in under eval/paper/artifacts/)
 eval/.bfcl_cache/
 eval/results/
+
+# Secrets
+.env
+.eval
+*.env
+!.env.example
 
 # Pytest
 .pytest_cache/

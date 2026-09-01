@@ -81,6 +81,12 @@ def print_report(
         [_pct(metrics.retrievers[n].exact_match) for n in retriever_names],
     )
     row(
+        "AST accuracy",
+        _pct(getattr(metrics, "baseline_ast_acc", metrics.baseline_exact_match)),
+        [_pct(getattr(metrics.retrievers[n], "ast_acc", metrics.retrievers[n].exact_match))
+         for n in retriever_names],
+    )
+    row(
         f"Δ name acc vs baseline",
         "—",
         [_delta(metrics.retrievers[n].delta_name_acc) for n in retriever_names],
@@ -89,6 +95,12 @@ def print_report(
         f"Δ exact match vs baseline",
         "—",
         [_delta(metrics.retrievers[n].delta_exact_match) for n in retriever_names],
+    )
+    row(
+        f"Δ AST acc vs baseline",
+        "—",
+        [_delta(getattr(metrics.retrievers[n], "delta_ast_acc", 0.0))
+         for n in retriever_names],
     )
 
     print(sep)
@@ -235,13 +247,17 @@ def save_results(
             "baseline": {
                 "name_acc": r.baseline_name_acc,
                 "exact_match": r.baseline_exact_match,
+                "ast_acc": getattr(r, "baseline_ast_acc", r.baseline_exact_match),
                 "tokens": r.baseline_tokens,
                 "predicted": _pred(r.baseline_pred),
+                "error": getattr(r, "baseline_error", None),
+                "latency_ms": getattr(r, "baseline_latency_ms", 0.0),
             },
             "retrievers": {
                 rname: {
                     "name_acc": rr.name_acc,
                     "exact_match": rr.exact_match,
+                    "ast_acc": getattr(rr, "ast_acc", rr.exact_match),
                     "recall": rr.recall,
                     "dcg": rr.dcg,
                     "ndcg": rr.ndcg,
@@ -250,6 +266,8 @@ def save_results(
                     "compression_rate": rr.compression_rate,
                     "tool_names": rr.tool_names,
                     "predicted": _pred(rr.predicted),
+                    "error": getattr(rr, "error", None),
+                    "latency_ms": getattr(rr, "latency_ms", 0.0),
                 }
                 for rname, rr in r.retrievers.items()
             },
@@ -289,3 +307,141 @@ def print_verbose_instance(r: InstanceResult, k: int) -> None:
         f"    GT={gt}  base={b_name} {b_mark}  |  "
         + "  |  ".join(retriever_parts)
     )
+
+
+def write_paper_artifacts(
+    all_metrics: Dict[str, AggregateMetrics],
+    output_dir: Path,
+    k: int,
+    catalog_size: int,
+    protocol: str,
+    *,
+    all_instances: Optional[Dict[str, List[dict]]] = None,
+    collisions: Optional[List[dict]] = None,
+    catalog_names: Optional[List[str]] = None,
+    embedder: str = "",
+    versioned_dir: Optional[Path] = None,
+) -> None:
+    """Write summary.csv, table.md, and harness_results.md for the paper protocol."""
+    import csv
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / "summary.csv"
+    md_path = output_dir / "table.md"
+
+    rows = []
+    for model_name, m in all_metrics.items():
+        short = model_name.split("/")[-1]
+        rows.append({
+            "model": short,
+            "condition": "Baseline",
+            "n": m.n,
+            "name_acc": m.baseline_name_acc,
+            "ast_acc": getattr(m, "baseline_ast_acc", m.baseline_exact_match),
+            "recall_at_k": "",
+            "ndcg_at_k": "",
+            "mean_prompt_tokens": m.mean_baseline_tokens,
+            "compression": 0.0,
+            "mean_latency_ms": getattr(m, "mean_baseline_latency_ms", 0.0),
+        })
+        for rname, rm in m.retrievers.items():
+            rows.append({
+                "model": short,
+                "condition": rname,
+                "n": m.n,
+                "name_acc": rm.name_acc,
+                "ast_acc": getattr(rm, "ast_acc", rm.exact_match),
+                "recall_at_k": rm.recall,
+                "ndcg_at_k": rm.ndcg,
+                "mean_prompt_tokens": rm.mean_tokens,
+                "compression": rm.mean_compression_rate,
+                "mean_latency_ms": getattr(rm, "mean_latency_ms", 0.0),
+            })
+
+    fieldnames = [
+        "model", "condition", "n", "name_acc", "ast_acc",
+        "recall_at_k", "ndcg_at_k", "mean_prompt_tokens",
+        "compression", "mean_latency_ms",
+    ]
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    lines = [
+        "# BFCL V4 Multiple — high-cardinality Tool RAG",
+        "",
+        f"Protocol: `{protocol}` (BFCL-derived; **not** an official Gorilla leaderboard score).",
+        f"Catalog size: {catalog_size} tools. k={k}.",
+        "",
+        "## Tool name accuracy",
+        "",
+    ]
+
+    model_names = list(all_metrics.keys())
+    if model_names:
+        retriever_names: list = []
+        for m in all_metrics.values():
+            if m.retrievers:
+                retriever_names = list(m.retrievers.keys())
+                break
+        header = "| Model | Baseline |" + "".join(f" {rn} |" for rn in retriever_names)
+        sep = "|---|---|" + "".join("---|" for _ in retriever_names)
+        lines.append(header)
+        lines.append(sep)
+        for mname in model_names:
+            m = all_metrics[mname]
+            short = mname.split("/")[-1]
+            cells = [_pct(m.baseline_name_acc)]
+            cells += [
+                _pct(m.retrievers[rn].name_acc) if rn in m.retrievers else "—"
+                for rn in retriever_names
+            ]
+            lines.append("| " + short + " | " + " | ".join(cells) + " |")
+        lines.extend(["", "## AST accuracy", "", header, sep])
+        for mname in model_names:
+            m = all_metrics[mname]
+            short = mname.split("/")[-1]
+            cells = [_pct(getattr(m, "baseline_ast_acc", m.baseline_exact_match))]
+            cells += [
+                _pct(getattr(m.retrievers[rn], "ast_acc", m.retrievers[rn].exact_match))
+                if rn in m.retrievers else "—"
+                for rn in retriever_names
+            ]
+            lines.append("| " + short + " | " + " | ".join(cells) + " |")
+        lines.extend(["", "## Context compression", "", header, sep])
+        for mname in model_names:
+            m = all_metrics[mname]
+            short = mname.split("/")[-1]
+            cells = ["0.0%"]
+            cells += [
+                _pct(m.retrievers[rn].mean_compression_rate) if rn in m.retrievers else "—"
+                for rn in retriever_names
+            ]
+            lines.append("| " + short + " | " + " | ".join(cells) + " |")
+
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"  Paper table → {md_path}")
+    print(f"  Paper CSV   → {csv_path}")
+
+    from .harness_report import freeze_paper_artifacts, write_harness_results
+
+    harness_path = output_dir / "harness_results.md"
+    write_harness_results(
+        harness_path,
+        all_metrics,
+        all_instances or {},
+        k=k,
+        catalog_size=catalog_size,
+        protocol=protocol,
+        embedder=embedder,
+        collisions=collisions,
+        catalog_names=catalog_names,
+    )
+    print(f"  Harness results → {harness_path}")
+
+    if versioned_dir is not None:
+        copied = freeze_paper_artifacts(output_dir, Path(versioned_dir))
+        for dest in copied:
+            print(f"  Versioned     → {dest}")
+

@@ -32,6 +32,7 @@ os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
 import argparse
 import gc
 import json
+import re
 import time
 import traceback
 from datetime import datetime
@@ -40,16 +41,37 @@ from tqdm import tqdm
 
 import toolscope
 from bfcl_eval.checkpoint import CheckpointManager
-from bfcl_eval.dataset import load_entries, collect_all_tools, build_instance_pool
+from bfcl_eval.dataset import (
+    load_entries, collect_catalog, build_instance_pool, write_collision_report,
+)
 from bfcl_eval.model import DummyModel, HFModel, OpenAIModel
 from bfcl_eval.evaluate import evaluate_instance, aggregate, AggregateMetrics, RetrieverMetrics
 from bfcl_eval.report import (
     print_report, print_cross_model_summary, save_results, print_verbose_instance,
+    write_paper_artifacts,
 )
-from bfcl_eval.retrieval import RandomRetriever, BM25Retriever, TFIDFRetriever, OracleRetriever
+from bfcl_eval.retrieval import (
+    RandomRetriever, BM25Retriever, TFIDFRetriever, OracleRetriever, ToolScopeRetriever,
+)
+from bfcl_eval.agent import require_llm_credentials
 
 
 # ── Config helpers ──────────────────────────────────────────────────────────
+
+
+_ENV_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _env_nonempty(name: str) -> str:
+    return (os.environ.get(name) or "").strip().strip('"').strip("'")
+
+
+def _expand_env(value: object) -> str:
+    """Expand ``${VAR}`` placeholders; strip quotes. Non-strings become ''."""
+    if not isinstance(value, str):
+        return ""
+    expanded = _ENV_PLACEHOLDER.sub(lambda m: _env_nonempty(m.group(1)), value)
+    return expanded.strip().strip('"').strip("'")
 
 
 def _load_config(path: Path) -> dict:
@@ -80,14 +102,16 @@ def _resolve_model_entries(model_cfg: dict, cli_model: str | None) -> list[dict]
     top-level model keys by _apply_overrides and take precedence over
     ``model.defaults``.
     """
-    # 1. Hardcoded defaults
+    # 1. Hardcoded defaults (OpenAI-compatible URL/key come from .env when set)
     defaults = {
         "backend": "hf",
+        "provider": "openai",
         "device": "auto",
         "dtype": "auto",
         "max_new_tokens": 256,
-        "base_url": "http://localhost:8000/v1",
-        "api_key": os.environ.get("OPENAI_API_KEY", "EMPTY"),
+        "base_url": _env_nonempty("OPENAI_BASE_URL") or "http://localhost:8000/v1",
+        "api_key": _env_nonempty("OPENAI_API_KEY") or "EMPTY",
+        "api_key_env": "OPENAI_API_KEY",
     }
 
     # 2. Config-level defaults (model.defaults section)
@@ -100,7 +124,13 @@ def _resolve_model_entries(model_cfg: dict, cli_model: str | None) -> list[dict]
 
     # Resolve entry list
     if cli_model:
-        raw_entries = [{"name": cli_model}]
+        configured = list(model_cfg.get("entries") or [])
+        matched = []
+        for raw in configured:
+            name = raw if isinstance(raw, str) else (raw or {}).get("name")
+            if name == cli_model:
+                matched.append(raw)
+        raw_entries = matched if matched else [{"name": cli_model}]
     elif "entries" in model_cfg:
         raw_entries = list(model_cfg["entries"])
     elif "names" in model_cfg:
@@ -116,6 +146,30 @@ def _resolve_model_entries(model_cfg: dict, cli_model: str | None) -> list[dict]
             raw = {"name": raw}
         entry = dict(defaults)
         entry.update(raw)
+        provider = (entry.get("provider") or "openai").lower()
+        entry["provider"] = provider
+
+        env_name = entry.get("api_key_env")
+        if env_name:
+            entry["api_key"] = (
+                _env_nonempty(str(env_name)) or str(entry.get("api_key") or "")
+            )
+        key = str(entry.get("api_key") or "").strip().strip('"').strip("'")
+        if provider in ("google", "gemini") and not key:
+            key = _env_nonempty("GOOGLE_API_KEY") or _env_nonempty("GEMINI_API_KEY")
+        entry["api_key"] = key
+
+        raw_url = entry.get("base_url")
+        if isinstance(raw_url, str) and raw_url.strip():
+            entry["base_url"] = _expand_env(raw_url)
+        elif provider in ("google", "gemini"):
+            entry["base_url"] = ""
+        else:
+            entry["base_url"] = (
+                _env_nonempty("OPENAI_BASE_URL")
+                or _expand_env(raw_url or "")
+                or "http://localhost:8000/v1"
+            )
         entries.append(entry)
 
     return entries
@@ -146,6 +200,8 @@ def _apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
         _deep_set(cfg, "model.base_url", args.base_url)
     if args.api_key:
         _deep_set(cfg, "model.api_key", args.api_key)
+    if getattr(args, "retrievers", None):
+        cfg["retrievers"] = list(args.retrievers)
     return cfg
 
 
@@ -206,14 +262,18 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="BFCL categories: simple multiple parallel parallel_multiple")
     p.add_argument("--seed", type=int)
     p.add_argument("--output-dir", dest="output_dir")
-    p.add_argument("--backend", choices=["hf", "openai"],
-                   help="Model backend: hf (local HuggingFace) | openai (remote API)")
+    p.add_argument("--backend", choices=["hf", "openai", "langchain"],
+                   help="Model backend: hf | openai | langchain")
     p.add_argument("--base-url", dest="base_url",
                    help="Base URL for the OpenAI-compatible endpoint "
                         "(e.g. http://localhost:8000/v1)")
     p.add_argument("--api-key", dest="api_key",
                    help="API key for the OpenAI-compatible endpoint "
                         "(default: OPENAI_API_KEY env var, or 'EMPTY')")
+    p.add_argument("--retrievers", nargs="+",
+                   help="Retrievers to run: Random BM25 TF-IDF Oracle* ToolScope")
+    p.add_argument("--workers", type=int, default=1,
+                   help="Parallel instance workers for API models (default 1)")
     p.add_argument("--dry-run", action="store_true",
                    help="Use a dummy model (no GPU needed) to test the full pipeline")
     p.add_argument("--no-resume", dest="no_resume", action="store_true",
@@ -282,23 +342,68 @@ def _load_metrics_from_json(path: Path) -> AggregateMetrics:
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     m = data["metrics"]
+    retrievers = {}
+    for name, rm in m.get("retrievers", {}).items():
+        retrievers[name] = RetrieverMetrics(
+            name_acc=rm["name_acc"],
+            exact_match=rm["exact_match"],
+            ast_acc=rm.get("ast_acc", rm.get("exact_match", 0.0)),
+            recall=rm["recall"],
+            dcg=rm["dcg"],
+            ndcg=rm["ndcg"],
+            mean_tokens=rm["mean_tokens"],
+            mean_compression_rate=rm["mean_compression_rate"],
+            mean_latency_ms=rm.get("mean_latency_ms", 0.0),
+            delta_name_acc=rm["delta_name_acc"],
+            delta_exact_match=rm["delta_exact_match"],
+            delta_ast_acc=rm.get("delta_ast_acc", 0.0),
+            error_counts=rm.get("error_counts", {}),
+        )
     return AggregateMetrics(
         n=m["n"],
         n_skipped=m["n_skipped"],
         baseline_name_acc=m["baseline_name_acc"],
         baseline_exact_match=m["baseline_exact_match"],
+        baseline_ast_acc=m.get("baseline_ast_acc", m.get("baseline_exact_match", 0.0)),
         mean_baseline_tokens=m["mean_baseline_tokens"],
-        retrievers={
-            name: RetrieverMetrics(**rm)
-            for name, rm in m["retrievers"].items()
-        },
+        mean_baseline_latency_ms=m.get("mean_baseline_latency_ms", 0.0),
+        retrievers=retrievers,
     )
+
+
+def _best_result_json(output_dir: Path, model_name: str) -> Path | None:
+    """Largest-n result JSON for a model slug; break ties by mtime."""
+    slug = model_name.split("/")[-1].replace(" ", "_")
+    best = None
+    best_n = -1
+    best_mtime = -1.0
+    for path in output_dir.glob(f"bfcl_eval_{slug}_*.json"):
+        try:
+            with open(path, encoding="utf-8") as f:
+                n = int((json.load(f).get("metrics") or {}).get("n") or -1)
+        except Exception:
+            continue
+        mtime = path.stat().st_mtime
+        if n > best_n or (n == best_n and mtime > best_mtime):
+            best = path
+            best_n = n
+            best_mtime = mtime
+    return best
+
+
+def _load_dotenv() -> None:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(_SRC_DIR.parent / ".env", override=True)
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
+    _load_dotenv()
     args = _build_parser().parse_args()
 
     cfg_path = Path(args.config)
@@ -319,6 +424,9 @@ def main() -> None:
 
     model_entries     = _resolve_model_entries(model_cfg, args.model)
     model_names       = [e["name"] for e in model_entries]
+    artifact_model_names = [
+        e["name"] for e in _resolve_model_entries(model_cfg, None)
+    ]
     categories        = ds_cfg.get("categories", ["multiple"])
     samples           = ds_cfg.get("samples")
     pool_size         = ds_cfg.get("pool_size", 100)
@@ -328,22 +436,30 @@ def main() -> None:
     embed_provider    = embed_cfg.get("provider", "sentence-transformers")
     embed_allow_dl    = embed_cfg.get("allow_download", True)
     output_dir        = Path(out_cfg.get("results_dir", "eval/results"))
+    versioned_dir_cfg = out_cfg.get("versioned_dir")
     verbose           = out_cfg.get("verbose", False)
     cache_dir         = Path(ds_cfg.get("cache_dir", "eval/.bfcl_cache"))
+    protocol          = ds_cfg.get("protocol") or (
+        "shared_catalog" if pool_size is None else "legacy"
+    )
+    requested_retrievers = cfg.get("retrievers") or None
 
     print()
     print("=== BFCL Evaluation — Model × Retriever Matrix ===")
     if args.dry_run:
         print("  Mode      : DRY RUN (dummy model, no GPU needed)")
+    print(f"  Protocol  : {protocol}")
     print(f"  Models    : {len(model_entries)}")
     for entry in model_entries:
         tag = entry["backend"]
-        if tag == "openai":
-            tag += f" → {entry['base_url']}"
+        if tag in ("openai", "langchain") and entry.get("provider") != "google":
+            tag += f" → {entry.get('base_url', '')}"
+        elif entry.get("provider") in ("google", "gemini"):
+            tag += " → google"
         print(f"              {entry['name']}  ({tag})")
     print(f"  Categories: {categories}")
     print(f"  Samples   : {samples or 'all'}")
-    print(f"  Pool size : {pool_size}  |  k: {k}  |  Seed: {seed}")
+    print(f"  Pool size : {pool_size if pool_size is not None else 'all (shared catalog)'}  |  k: {k}  |  Seed: {seed}")
     print(f"  Embedder  : {embed_model}")
     print()
 
@@ -359,9 +475,24 @@ def main() -> None:
         sys.exit(1)
 
     print("Collecting tool definitions...")
-    all_tools = collect_all_tools(entries)
+    all_tools, collisions = collect_catalog(entries)
     print(f"  {len(all_tools)} unique tools across all entries")
+    if collisions:
+        report_path = output_dir / "tool_name_collisions.json"
+        write_collision_report(collisions, report_path)
+        print(f"  {len(collisions)} name/schema collisions (first-seen kept) → {report_path}")
     print()
+
+    catalog_size = len(all_tools)
+    tool_list = list(all_tools.values())
+    catalog_names = []
+    try:
+        from bfcl_eval.tools import tool_name as _tool_name
+        catalog_names = [_tool_name(t) for t in tool_list]
+    except Exception:
+        catalog_names = list(all_tools.keys())
+    shared_pool = tool_list if protocol == "shared_catalog" else None
+    ckpt_pool_size = catalog_size if protocol == "shared_catalog" else int(pool_size or 100)
 
     print("Building ToolScope index...")
     embedding_config = toolscope.EmbeddingConfig(
@@ -370,25 +501,45 @@ def main() -> None:
         allow_download=embed_allow_dl,
         normalize=True,
     )
-    ts_index = toolscope.index(list(all_tools.values()), embedding=embedding_config)
-    print("  Index ready.")
+
+    use_lc_selector = protocol == "shared_catalog"
+    if use_lc_selector:
+        from toolscope.adapters.langchain import ToolSelector
+        from bfcl_eval.tools import catalog_to_langchain
+
+        lc_catalog = catalog_to_langchain(tool_list)
+        ts_selector = ToolSelector(embedding=embedding_config)
+        ts_retriever: object = ToolScopeRetriever(ts_selector, lc_catalog)
+        print("  ToolSelector (LangChain adapter) ready.")
+    else:
+        ts_retriever = toolscope.index(tool_list, embedding=embedding_config)
+        print("  Index ready.")
     print()
 
     print("Building retrieval baselines...")
-    tool_list = list(all_tools.values())
     retrievers = {
         "Random":    RandomRetriever(tool_list, seed=seed),
         "BM25":      BM25Retriever(tool_list),
         "TF-IDF":    TFIDFRetriever(tool_list),
         "Oracle*":   OracleRetriever(tool_list, seed=seed),
-        "ToolScope": ts_index,
+        "ToolScope": ts_retriever,
     }
+    if requested_retrievers:
+        wanted = set(requested_retrievers)
+        retrievers = {n: r for n, r in retrievers.items() if n in wanted}
+        missing = wanted - set(retrievers)
+        if missing:
+            print(f"  Warning: unknown retrievers ignored: {sorted(missing)}")
     print(f"  Retrievers: {', '.join(retrievers)}")
     print()
 
     # ══ Pre-flight checks ════════════════════════════════════════════════════
 
     _preflight_check(model_entries)
+    if not args.dry_run:
+        for entry in model_entries:
+            if entry.get("backend") in ("openai", "langchain"):
+                require_llm_credentials(entry)
 
     # ══ Model loop ═══════════════════════════════════════════════════════════
 
@@ -414,11 +565,13 @@ def main() -> None:
                 output_dir=output_dir,
                 model_name=model_name,
                 categories=categories,
-                pool_size=pool_size,
+                pool_size=ckpt_pool_size,
                 seed=seed,
                 k=k,
                 resume=not args.no_resume,
                 dry_run=args.dry_run,
+                protocol=protocol,
+                catalog_size=catalog_size,
             ) as ckpt:
 
                 # ── Resume: load any previously evaluated instances ──────────
@@ -447,6 +600,9 @@ def main() -> None:
                 if remaining:
                     if args.dry_run:
                         model = DummyModel()
+                    elif entry["backend"] == "langchain":
+                        from bfcl_eval.agent import LangGraphAgent
+                        model = LangGraphAgent(entry)
                     elif entry["backend"] == "openai":
                         model = OpenAIModel(
                             model_name=model_name,
@@ -471,38 +627,44 @@ def main() -> None:
                 n_skipped = 0
 
                 if remaining:
-                    for entry in tqdm(
+                    for inst in tqdm(
                         remaining,
                         desc=_short_name(model_name),
                         unit="inst",
                         initial=len(done),
                         total=len(entries),
                     ):
-                        instance_pool = build_instance_pool(
-                            entry=entry, all_tools=all_tools, pool_size=pool_size, seed=seed,
-                        )
+                        if shared_pool is not None:
+                            instance_pool = shared_pool
+                        else:
+                            instance_pool = build_instance_pool(
+                                entry=inst, all_tools=all_tools,
+                                pool_size=int(pool_size), seed=seed,
+                            )
                         result = None
                         try:
                             result = evaluate_instance(
-                                entry_id=entry.id,
-                                messages=entry.messages,
-                                ground_truth=entry.ground_truth,
+                                entry_id=inst.id,
+                                messages=inst.messages,
+                                ground_truth=inst.ground_truth,
                                 tool_pool=instance_pool,
                                 model=model,
                                 retrievers=retrievers,
                                 k=k,
+                                possible_answer=inst.possible_answer,
+                                functions_bfcl=inst.functions_bfcl,
                             )
                         except KeyboardInterrupt:
                             raise
                         except Exception as exc:
                             tb = traceback.format_exc()
                             tqdm.write(
-                                f"\n  WARNING: {entry.id} failed — skipping\n"
+                                f"\n  WARNING: {inst.id} failed — skipping\n"
                                 f"  {type(exc).__name__}: {exc}\n"
                                 f"{tb}"
                             )
                             _write_error_log(
-                                output_dir, model_name, entry.id,
+                                output_dir, model_name, inst.id,
                                 type(exc).__name__, str(exc), tb,
                             )
 
@@ -548,7 +710,7 @@ def main() -> None:
             metrics=metrics,
             model_name=model_name,
             categories=categories,
-            pool_size=pool_size,
+            pool_size=ckpt_pool_size,
             k=k,
             embedding_model=embed_model,
         )
@@ -587,9 +749,8 @@ def main() -> None:
         print()
 
     # Load metrics from models that ran in a prior process invocation (exec
-    # chain).  The last process in the chain only has its own model in
-    # all_metrics; earlier models' metrics live in their saved JSON files.
-    for mname in model_names:
+    # chain), and from siblings when this is a single-model rerun.
+    for mname in artifact_model_names:
         if mname not in all_metrics:
             slug = mname.split("/")[-1].replace(" ", "_")
             candidates = sorted(
@@ -597,16 +758,75 @@ def main() -> None:
                 key=lambda p: p.stat().st_mtime,
                 reverse=True,
             )
-            if candidates:
+            loaded = None
+            loaded_n = -1
+            loaded_mtime = -1.0
+            for path in candidates:
                 try:
-                    all_metrics[mname] = _load_metrics_from_json(candidates[0])
-                except Exception as exc:
-                    print(f"  Warning: could not load metrics for {mname}: {exc}")
+                    metrics = _load_metrics_from_json(path)
+                except Exception:
+                    continue
+                mtime = path.stat().st_mtime
+                if metrics.n > loaded_n or (
+                    metrics.n == loaded_n and mtime > loaded_mtime
+                ):
+                    loaded = metrics
+                    loaded_n = metrics.n
+                    loaded_mtime = mtime
+            if loaded is not None:
+                all_metrics[mname] = loaded
+            elif candidates:
+                print(f"  Warning: could not load metrics for {mname}")
+
+    ordered: dict[str, AggregateMetrics] = {}
+    for mname in artifact_model_names:
+        if mname in all_metrics:
+            ordered[mname] = all_metrics[mname]
+    for mname, metrics in all_metrics.items():
+        if mname not in ordered:
+            ordered[mname] = metrics
+    all_metrics = ordered
+
+    all_instances: dict[str, list] = {}
+    for mname in all_metrics:
+        path = _best_result_json(output_dir, mname)
+        if path is None:
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+            all_instances[mname] = payload.get("instances") or []
+        except Exception:
+            print(f"  Warning: could not load instance traces for {mname}")
 
     if len(all_metrics) >= 2:
         print_cross_model_summary(
             all_metrics=all_metrics,
             k=k,
+        )
+
+    if protocol == "shared_catalog" and all_metrics:
+        freeze_dir = None
+        if versioned_dir_cfg and not args.dry_run and not samples:
+            freeze_dir = Path(versioned_dir_cfg)
+        elif versioned_dir_cfg and (args.dry_run or samples):
+            print(
+                "  Note: skipping versioned artifacts "
+                "(dry-run or --samples). Full runs copy table.md, "
+                "summary.csv, and harness_results.md to "
+                f"{versioned_dir_cfg}."
+            )
+        write_paper_artifacts(
+            all_metrics=all_metrics,
+            output_dir=output_dir,
+            k=k,
+            catalog_size=catalog_size,
+            protocol=protocol,
+            all_instances=all_instances,
+            collisions=collisions,
+            catalog_names=catalog_names,
+            embedder=str(embed_model or ""),
+            versioned_dir=freeze_dir,
         )
 
 

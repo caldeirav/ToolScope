@@ -1,0 +1,47 @@
+# BFCL V4 Multiple — high-cardinality paper protocol
+#
+# Scores are BFCL-derived, not official Gorilla leaderboard numbers.
+# OpenAI-compatible models read OPENAI_BASE_URL + OPENAI_API_KEY from
+# the repo-root .env. Gemini reads GOOGLE_API_KEY. Never commit keys.
+
+model:
+  defaults:
+    backend: langchain
+    provider: openai
+    api_key_env: OPENAI_API_KEY
+    max_new_tokens: 512
+
+  entries:
+    - name: deepseek-v4-flash-0731
+    - name: qwen3.5-397b-a17b
+    - name: gemini-3.7-flash
+      provider: google
+      api_key_env: GOOGLE_API_KEY
+      base_url: ""
+
+dataset:
+  protocol: shared_catalog
+  categories:
+    - multiple
+  samples: null          # all instances
+  pool_size: null        # all unique tools in the split = catalog C
+  cache_dir: eval/.bfcl_cache
+  seed: 42
+
+retrievers:
+  - BM25
+  - ToolScope
+
+toolscope:
+  k: 10
+  embedding:
+    provider: sentence-transformers
+    model: sentence-transformers/all-MiniLM-L6-v2
+    allow_download: true
+
+output:
+  results_dir: eval/results/paper
+  # Full (non-dry, unsampled) runs copy table.md, summary.csv, and
+  # harness_results.md here so the analysis is git-tracked.
+  versioned_dir: eval/paper/artifacts
+  verbose: false
