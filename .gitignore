@@ -21,6 +21,8 @@ env/
 # checked in under eval/paper/artifacts/)
 eval/.bfcl_cache/
 eval/results/
+eval/local/models/
+eval/local/.podman/
 
 # Secrets
 .env

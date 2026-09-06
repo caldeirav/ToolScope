@@ -109,6 +109,7 @@ def _resolve_model_entries(model_cfg: dict, cli_model: str | None) -> list[dict]
         "device": "auto",
         "dtype": "auto",
         "max_new_tokens": 256,
+        "timeout_seconds": 120,
         "base_url": _env_nonempty("OPENAI_BASE_URL") or "http://localhost:8000/v1",
         "api_key": _env_nonempty("OPENAI_API_KEY") or "EMPTY",
         "api_key_env": "OPENAI_API_KEY",
@@ -186,6 +187,8 @@ def _apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
         _deep_set(cfg, "dataset.pool_size", args.pool_size)
     if args.k is not None:
         _deep_set(cfg, "toolscope.k", args.k)
+    if getattr(args, "k_values", None):
+        _deep_set(cfg, "toolscope.k_values", list(args.k_values))
     if args.category:
         _deep_set(cfg, "dataset.categories", args.category)
     if args.seed is not None:
@@ -258,6 +261,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--samples", type=int, help="Max evaluation instances (per category)")
     p.add_argument("--pool-size", dest="pool_size", type=int)
     p.add_argument("--k", type=int, help="Tools each retriever returns per query")
+    p.add_argument(
+        "--k-values", nargs="+", type=int, metavar="K",
+        help="K-ablation: score multiple k values per retriever (nested prefixes at k_max)",
+    )
     p.add_argument("--category", nargs="+",
                    help="BFCL categories: simple multiple parallel parallel_multiple")
     p.add_argument("--seed", type=int)
@@ -432,6 +439,8 @@ def main() -> None:
     pool_size         = ds_cfg.get("pool_size", 100)
     seed              = ds_cfg.get("seed", 42)
     k                 = ts_cfg.get("k", 5)
+    k_values_raw      = ts_cfg.get("k_values")
+    k_values          = sorted(set(int(x) for x in k_values_raw)) if k_values_raw else None
     embed_model       = embed_cfg.get("model", "sentence-transformers/all-MiniLM-L6-v2")
     embed_provider    = embed_cfg.get("provider", "sentence-transformers")
     embed_allow_dl    = embed_cfg.get("allow_download", True)
@@ -459,7 +468,8 @@ def main() -> None:
         print(f"              {entry['name']}  ({tag})")
     print(f"  Categories: {categories}")
     print(f"  Samples   : {samples or 'all'}")
-    print(f"  Pool size : {pool_size if pool_size is not None else 'all (shared catalog)'}  |  k: {k}  |  Seed: {seed}")
+    k_label = f"k: {k_values}" if k_values else f"k: {k}"
+    print(f"  Pool size : {pool_size if pool_size is not None else 'all (shared catalog)'}  |  {k_label}  |  Seed: {seed}")
     print(f"  Embedder  : {embed_model}")
     print()
 
@@ -572,6 +582,8 @@ def main() -> None:
                 dry_run=args.dry_run,
                 protocol=protocol,
                 catalog_size=catalog_size,
+                k_values=k_values,
+                samples=samples,
             ) as ckpt:
 
                 # ── Resume: load any previously evaluated instances ──────────
@@ -653,6 +665,7 @@ def main() -> None:
                                 k=k,
                                 possible_answer=inst.possible_answer,
                                 functions_bfcl=inst.functions_bfcl,
+                                k_values=k_values,
                             )
                         except KeyboardInterrupt:
                             raise

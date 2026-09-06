@@ -34,11 +34,19 @@ def _config_sig(
     dry_run: bool = False,
     protocol: str = "legacy",
     catalog_size: int = 0,
+    k_values: Optional[List[int]] = None,
+    samples: Optional[int] = None,
 ) -> str:
     prefix = "dryrun|" if dry_run else ""
+    if k_values:
+        kv = ",".join(str(x) for x in sorted(set(k_values)))
+        k_part = f"k[{kv}]"
+    else:
+        k_part = str(k)
+    n_part = "all" if samples is None else str(samples)
     key = (
         f"{prefix}{protocol}|{model_name}|{'|'.join(sorted(categories))}"
-        f"|{pool_size}|{catalog_size}|{seed}|{k}"
+        f"|{pool_size}|{catalog_size}|{seed}|{k_part}|n={n_part}"
     )
     return hashlib.sha256(key.encode()).hexdigest()[:12]
 
@@ -128,11 +136,14 @@ class CheckpointManager:
         dry_run: bool = False,
         protocol: str = "legacy",
         catalog_size: int = 0,
+        k_values: Optional[List[int]] = None,
+        samples: Optional[int] = None,
     ) -> None:
         slug = model_name.split("/")[-1]
         sig = _config_sig(
             model_name, categories, pool_size, seed, k,
             dry_run=dry_run, protocol=protocol, catalog_size=catalog_size,
+            k_values=k_values, samples=samples,
         )
         ckpt_dir = output_dir / "checkpoints"
         ckpt_dir.mkdir(parents=True, exist_ok=True)

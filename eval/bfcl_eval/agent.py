@@ -172,6 +172,8 @@ def make_llm(entry: Dict[str, Any]) -> Any:
     provider = (entry.get("provider") or "openai").lower()
     model_name = entry["name"]
     max_tokens = int(entry.get("max_new_tokens") or 512)
+    timeout_raw = entry.get("timeout_seconds")
+    timeout = float(timeout_raw) if timeout_raw is not None else 120.0
     api_key = str(entry.get("api_key") or "").strip().strip('"').strip("'")
 
     if provider in ("google", "gemini"):
@@ -206,6 +208,7 @@ def make_llm(entry: Dict[str, Any]) -> Any:
         api_key=api_key,
         temperature=0,
         max_tokens=max_tokens,
+        timeout=timeout,
     )
 
 

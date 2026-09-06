@@ -200,6 +200,80 @@ def test_dedupe_sanitized_name_keeps_first_original():
     assert deduped[0].name == "car_rental"
 
 
+def test_k_ablation_nested_prefixes():
+    """Retrieve once at k_max; score nested prefixes per k value."""
+    from bfcl_eval.agent import PredictResult
+    from bfcl_eval.evaluate import evaluate_instance
+
+    class FixedRetriever:
+        def __init__(self, tools):
+            self._tools = tools
+            self.last_k = None
+
+        def filter(self, messages, k):
+            self.last_k = k
+            return self._tools[:k]
+
+    class OkModel:
+        def predict(self, messages, tools):
+            names = [t["function"]["name"] for t in tools]
+            pick = names[0] if names else "missing"
+            return PredictResult(
+                raw=f'{{"name":"{pick}"}}',
+                predicted=ParsedToolCall(name=pick, arguments={"x": 1}),
+            )
+
+        def parse_tool_call(self, raw):
+            return None
+
+    schema = {"type": "object", "properties": {"x": {"type": "integer"}}}
+    tools = [
+        {"type": "function", "function": {"name": n, "description": n, "parameters": schema}}
+        for n in ("alpha", "beta", "gamma", "delta")
+    ]
+    retriever = FixedRetriever(tools)
+    result = evaluate_instance(
+        entry_id="k1",
+        messages=[{"role": "user", "content": "use alpha"}],
+        ground_truth=[{"alpha": {"x": 1}}],
+        tool_pool=tools,
+        model=OkModel(),
+        retrievers={"BM25": retriever},
+        k=10,
+        possible_answer=[{"alpha": {"x": [1]}}],
+        functions_bfcl=[{"name": "alpha", "parameters": schema}],
+        k_values=[5, 10, 20],
+    )
+    assert result is not None
+    assert retriever.last_k == 20
+    assert set(result.retrievers) == {"BM25@5", "BM25@10", "BM25@20"}
+    assert result.retrievers["BM25@5"].tool_names == ["alpha", "beta", "gamma", "delta"]
+    assert result.retrievers["BM25@10"].tool_names == ["alpha", "beta", "gamma", "delta"]
+    assert result.retrievers["BM25@20"].tool_names == ["alpha", "beta", "gamma", "delta"]
+
+
+def test_config_sig_k_values_changes_checkpoint_key():
+    from bfcl_eval.checkpoint import _config_sig
+
+    base = _config_sig("m", ["multiple"], 0, 42, 10, protocol="shared_catalog")
+    ablation = _config_sig(
+        "m", ["multiple"], 0, 42, 10,
+        protocol="shared_catalog", k_values=[5, 10, 20],
+    )
+    assert base != ablation
+    assert _config_sig(
+        "m", ["multiple"], 0, 42, 10,
+        protocol="shared_catalog", k_values=[10, 5, 20],
+    ) == ablation
+    assert _config_sig(
+        "m", ["multiple"], 0, 42, 10,
+        protocol="shared_catalog", k_values=[5, 10, 20], samples=5,
+    ) != _config_sig(
+        "m", ["multiple"], 0, 42, 10,
+        protocol="shared_catalog", k_values=[5, 10, 20], samples=None,
+    )
+
+
 def test_fail_close_baseline_still_runs_retrievers():
     from bfcl_eval.agent import PredictResult
     from bfcl_eval.evaluate import evaluate_instance

@@ -1,0 +1,39 @@
+{
+  "name": "ToolScope + llama.cpp (DGX Spark)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "LLAMA_CPP_TAG": "b4897"
+    }
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "runArgs": [
+    "--gpus", "all",
+    "--shm-size=32g"
+  ],
+  "mounts": [
+    "source=toolscope-model-cache,target=/workspace/eval/local/models,type=volume"
+  ],
+  "remoteEnv": {
+    "TOOLSCOPE_DEVCONTAINER": "1",
+    "TOOLSCOPE_INFERENCE_MODE": "native",
+    "OPENAI_BASE_URL": "http://127.0.0.1:8000/v1",
+    "OPENAI_API_KEY": "local",
+    "TOOLSCOPE_MODEL_CACHE": "/workspace/eval/local/models"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      }
+    }
+  },
+  "postCreateCommand": "bash /usr/local/bin/toolscope-post-create.sh",
+  "remoteUser": "root"
+}

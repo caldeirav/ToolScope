@@ -1,12 +1,18 @@
 # High-cardinality paper eval (BFCL V4 Multiple)
 
-This protocol asks a simple question:
+This protocol asks:
 
-> If the model is allowed to see **every** unique tool in BFCL V4 Non-Live **Multiple** (~400+ functions), does **selecting k of them** with Tool RAG beat binding the full catalog?
+> Can **locally-runnable models** — from high-sensitivity SLMs (3B–8B) through mid-sized
+> production models (32B) to control-ceiling agents (70B) — handle a 443-tool catalog,
+> and does **selecting k=10 with ToolScope** beat binding the full catalog?
+>
+> **Headline claim:** ToolScope filters 50+ tools to the 3–5 most relevant before the
+> LLM sees them, often lifting selection accuracy from ~30% to 85%+ on smaller models —
+> enabling an 8B model to match 70B tool-calling reliability.
 
 Scores are **BFCL-derived**. They are not official Gorilla leaderboard numbers: the catalog, the agent, and the grader all live in this repo.
 
-The shared runner is documented in [`eval/README.md`](../README.md). This page is the experiment design.
+The shared runner is documented in [`eval/README.md`](../README.md). **Local GGUF serving** on DGX Spark is documented in [`eval/local/README.md`](../local/README.md).
 
 ---
 
@@ -56,12 +62,18 @@ pip install -r eval/paper/requirements.txt
 Create a gitignored `.env` in the repo root. Copy [`.env.example`](../../.env.example):
 
 ```
-OPENAI_BASE_URL=https://your-host/v1
-OPENAI_API_KEY=...
-GOOGLE_API_KEY=...          # only if you run the Gemini entry
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+OPENAI_API_KEY=local
+TOOLSCOPE_MODEL_CACHE=eval/local/models
 ```
 
-Switching hosts is those two `OPENAI_*` lines. The runner loads `.env` on start.
+For **local GGUF models** (primary path), use the automated matrix:
+
+```bash
+eval/local/scripts/run_local_matrix.sh
+```
+
+For **hosted API models** (legacy reference run), set `OPENAI_BASE_URL` / `OPENAI_API_KEY` to your `/v1` host and use [`bfcl_multiple_hc.yaml`](bfcl_multiple_hc.yaml).
 
 ---
 
@@ -69,23 +81,30 @@ Switching hosts is those two `OPENAI_*` lines. The runner loads `.env` on start.
 
 The paper path uses `backend: langchain`.
 
-- **OpenAI-compatible** (`provider: openai`, the default) — `ChatOpenAI` against whatever `OPENAI_BASE_URL` is (or a per-entry `base_url`). Bearer token is `OPENAI_API_KEY`.
-- **Google** (`provider: google`) — `ChatGoogleGenerativeAI`. `GOOGLE_API_KEY` (or `GEMINI_API_KEY`).
+- **Local llama.cpp** (primary) — serve GGUF via [`eval/local/`](../local/). `ChatOpenAI` talks to `http://127.0.0.1:8000/v1`. Config: [`eval/local/bfcl_multiple_local.yaml`](../local/bfcl_multiple_local.yaml).
+- **OpenAI-compatible** (`provider: openai`, the default) — `ChatOpenAI` against `OPENAI_BASE_URL` (vLLM, cloud gateway, llama.cpp, …).
+- **Google** (`provider: google`) — `ChatGoogleGenerativeAI`. Legacy API run only.
 
-A YAML that defers URL and key to `.env`:
+The active local config lists five GGUF models in two tiers:
 
 ```yaml
+# eval/local/bfcl_multiple_local.yaml
 model:
   defaults:
     backend: langchain
     provider: openai
-    api_key_env: OPENAI_API_KEY
-    max_new_tokens: 512
+    base_url: http://127.0.0.1:8000/v1
   entries:
-    - name: your-model-id
+    # SLM tier
+    - name: llama-3.2-3b-instruct
+    - name: qwen2.5-7b-instruct
+    # Local agent tier
+    - name: glm-4.7-32b
+    - name: qwen3-32b
+    - name: llama-3.3-70b-instruct
 ```
 
-The checked-in [`bfcl_multiple_hc.yaml`](bfcl_multiple_hc.yaml) is that pattern: two OpenAI-compatible chat models plus Gemini. Point `.env` at your `/v1` server and change `entries` as needed.
+The legacy [`bfcl_multiple_hc.yaml`](bfcl_multiple_hc.yaml) (DeepSeek / Qwen397B / Gemini API run) remains for historical comparison. Frozen API results: [`artifacts/`](artifacts/). New local results: [`artifacts/local/`](artifacts/local/).
 
 Other knobs in that file:
 
@@ -99,17 +118,20 @@ Other knobs in that file:
 ## Run
 
 ```bash
-# Full matrix from the paper YAML
-python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml
+# Full local matrix (llama.cpp on DGX Spark)
+eval/local/scripts/run_local_matrix.sh
 
-# Dummy model, no keys
+# Pilot: five queries per model
+eval/local/scripts/run_local_matrix.sh --samples 5
+
+# Config wiring only (no GPU / no server)
+eval/local/scripts/run_local_matrix.sh --dry-run --samples 20
+
+# Single local model (server must already be running)
+python eval/run_eval.py --config eval/local/bfcl_multiple_local.yaml --model qwen3-32b
+
+# Legacy API YAML (historical)
 python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml --dry-run --samples 20
-
-# Live APIs, five queries
-python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml --samples 5
-
-# One model from the YAML
-python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml --model gemini-3.7-flash
 ```
 
 Checkpoints resume automatically (the key includes protocol and `|C|`). `--no-resume` starts that model from scratch. After each model the process execs a fresh interpreter so the next model starts with a clean memory budget.
@@ -132,7 +154,12 @@ Runtime files go to gitignored `eval/results/paper/`:
 
 A single-model rerun still **merges** sibling result JSONs into `summary.csv` / `table.md` / `harness_results.md`, so you can finish Gemini without re-running the OpenAI-compatible models.
 
-A **full** paper run (not `--dry-run`, not `--samples`) also copies `table.md`, `summary.csv`, and `harness_results.md` to [`artifacts/`](artifacts/) (`output.versioned_dir`). That is the git-tracked snapshot. Per-model JSON traces stay gitignored under `eval/results/paper/` because they can contain host URLs.
+A **full** paper run (not `--dry-run`, not `--samples`) also copies `table.md`, `summary.csv`, and `harness_results.md` to the configured `output.versioned_dir`:
+
+- Local GGUF runs → [`artifacts/local/`](artifacts/local/)
+- Legacy API runs → [`artifacts/`](artifacts/)
+
+That is the git-tracked snapshot. Per-model JSON traces stay gitignored under `eval/results/` because they can contain host URLs.
 
 ---
 

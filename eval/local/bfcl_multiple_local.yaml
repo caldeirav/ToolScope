@@ -1,0 +1,56 @@
+# BFCL V4 Multiple — local GGUF models via llama.cpp (OpenAI-compatible /v1)
+#
+# Serve models with eval/local/scripts/serve_model.sh before running, or use
+# eval/local/scripts/run_local_matrix.sh for the full automated matrix.
+#
+# Scores are BFCL-derived, not official Gorilla leaderboard numbers.
+
+model:
+  defaults:
+    backend: langchain
+    provider: openai
+    api_key_env: OPENAI_API_KEY
+    base_url: http://127.0.0.1:8000/v1
+    max_new_tokens: 512
+    timeout_seconds: 240
+
+  entries:
+    # High-Sensitivity SLM tier (primary testbed)
+    - name: llama-3.2-3b-instruct
+      timeout_seconds: 180
+    - name: qwen2.5-7b-instruct
+      timeout_seconds: 180
+    # Mid-Sized Production tier
+    - name: glm-4.7-32b
+    - name: qwen3-32b
+    # Control Ceiling tier
+    - name: llama-3.3-70b-instruct
+      timeout_seconds: 300
+
+dataset:
+  protocol: shared_catalog
+  categories:
+    - multiple
+  samples: null
+  pool_size: null
+  cache_dir: eval/.bfcl_cache
+  seed: 42
+
+retrievers:
+  - BM25
+  - ToolScope
+
+toolscope:
+  k: 10
+  # K-ablation: retrieve once at k_max, score nested prefixes per retriever.
+  # Suggested: 5 (tight / value-prop filter), 10 (paper default), 20 (wash-out test).
+  k_values: [5, 10, 20]
+  embedding:
+    provider: sentence-transformers
+    model: sentence-transformers/all-MiniLM-L6-v2
+    allow_download: true
+
+output:
+  results_dir: eval/results/paper/local
+  versioned_dir: eval/paper/artifacts/local
+  verbose: false

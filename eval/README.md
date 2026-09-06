@@ -12,7 +12,19 @@ There are two protocols in the same runner (`eval/run_eval.py`):
 | Conditions | Baseline (full pool) vs retrieval baselines vs ToolScope | Baseline (all of C) vs BM25@k vs ToolScope@k |
 | Typical use | Local Hugging Face models, quick iteration | High-cardinality Tool RAG numbers for a write-up |
 
-The paper protocol is documented in [`eval/paper/README.md`](paper/README.md). This page covers install, the runner, metrics, and the default protocol.
+The paper protocol is documented in [`eval/paper/README.md`](paper/README.md). **Local GGUF evaluation** on DGX Spark is in [`eval/local/README.md`](local/README.md). This page covers install, the runner, metrics, and the default protocol.
+
+---
+
+## Local GGUF models (DGX Spark)
+
+Serve three GGUF models via llama.cpp in podman and run the shared-catalog paper protocol:
+
+```bash
+eval/local/scripts/run_local_matrix.sh
+```
+
+Models: Llama 3.3 70B (Q4_K_M), Qwen3 32B (Q8_0), GLM-4.7 32B (Q8_0). Frozen results land in [`eval/paper/artifacts/local/`](paper/artifacts/local/). See [`eval/local/README.md`](local/README.md) for prerequisites, troubleshooting, and single-model runs.
 
 ---
 
@@ -116,6 +128,7 @@ Default retrievers (override with `retrievers:` in YAML or `--retrievers`):
 | `model.defaults` | `base_url` | OpenAI-compatible `/v1` URL; else `OPENAI_BASE_URL`; else localhost |
 | `model.defaults` | `api_key_env` | Env var for the Bearer token (default `OPENAI_API_KEY`) |
 | `model.defaults` | `max_new_tokens` | Cap on the generated tool call |
+| `model.defaults` | `timeout_seconds` | HTTP timeout for OpenAI-compatible / LangGraph backends |
 | `model` | `entries` | List of `{name, ...}`. `--model NAME` runs one entry |
 | `dataset` | `protocol` | Omit for the distractor-pool protocol; `shared_catalog` for the paper |
 | `dataset` | `categories` | BFCL splits (`simple`, `multiple`, …) |

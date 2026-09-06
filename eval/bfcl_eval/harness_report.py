@@ -81,6 +81,21 @@ def _retriever_names(all_metrics: Dict[str, AggregateMetrics]) -> List[str]:
     return []
 
 
+def _pick_retriever(
+    retrievers: List[str], base: str, anchor_k: int
+) -> Optional[str]:
+    """Prefer ``base@anchor_k`` when k-ablation keys are present."""
+    tagged = f"{base}@{anchor_k}"
+    if tagged in retrievers:
+        return tagged
+    if base in retrievers:
+        return base
+    for r in retrievers:
+        if r.startswith(f"{base}@"):
+            return r
+    return None
+
+
 def _block(inst: dict, cond: str) -> dict:
     if cond == "Baseline":
         return inst.get("baseline") or {}
@@ -210,7 +225,7 @@ def render_harness_results(
     n_typ = ns[0] if ns and len(set(ns)) == 1 else None
     skipped = sum(all_metrics[n].n_skipped for n in ordered)
 
-    ts_name = "ToolScope" if "ToolScope" in retrievers else (
+    ts_name = _pick_retriever(retrievers, "ToolScope", k) or (
         retrievers[-1] if retrievers else ""
     )
     first = all_metrics[ordered[0]] if ordered else None
@@ -316,7 +331,7 @@ def render_harness_results(
             f"{ts_name} flips (win/lose) | McNemar p |",
             "|---|---:|---:|---:|---|---:|",
         ]
-        bm_name = "BM25" if "BM25" in retrievers else None
+        bm_name = _pick_retriever(retrievers, "BM25", k)
         for n in ordered:
             m = all_metrics[n]
             insts = all_instances.get(n, [])
