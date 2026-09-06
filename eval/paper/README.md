@@ -98,8 +98,8 @@ model:
     # SLM tier
     - name: llama-3.2-3b-instruct
     - name: qwen2.5-7b-instruct
-    # Local agent tier
-    - name: glm-4.7-32b
+    # Mid tier (Meta 8B + Qwen 32B)
+    - name: llama-3.1-8b-instruct
     - name: qwen3-32b
     - name: llama-3.3-70b-instruct
 ```

@@ -16,7 +16,7 @@ benchmark: **an 8B model with ToolScope matching 70B tool-calling reliability wi
 | Tier | Models | Role |
 |---|---|---|
 | **High-Sensitivity SLM** | `qwen2.5-7b-instruct`, `llama-3.2-3b-instruct` | Primary testbed — largest delta |
-| **Mid-Sized Production** | `glm-4.7-32b`, `qwen3-32b` | Fast deployment sweet spot |
+| **Mid-Sized Production** | `llama-3.1-8b-instruct`, `qwen3-32b` | Edge agent sweet spot (Meta 8B + Qwen 32B) |
 | **Control Ceiling** | `llama-3.3-70b-instruct` | Top-tier open weights baseline |
 
 ```bash
@@ -69,13 +69,17 @@ Registry: [`models.yaml`](models.yaml). Models run **one at a time** (sequential
 | `llama-3.2-3b-instruct` | `bartowski/Llama-3.2-3B-Instruct-GGUF` | Q8_0 | ~3.4 GB | Floor model |
 | `qwen2.5-7b-instruct` | `Qwen/Qwen2.5-7B-Instruct-GGUF` | Q8_0 | ~8.1 GB | Workhorse SLM; strong JSON, weak with 30–50+ tool distractors |
 
-### Local agent tier (32B–70B)
+### Mid + ceiling tier (8B–70B)
 
-| ID | HF repo | Quant | ~Size |
-|---|---|---|---|
-| `glm-4.7-32b` | `unsloth/GLM-4.7-GGUF` | Q8_0 | ~34 GB |
-| `qwen3-32b` | `Qwen/Qwen3-32B-GGUF` | Q8_0 | ~35 GB |
-| `llama-3.3-70b-instruct` | `bartowski/Llama-3.3-70B-Instruct-GGUF` | Q4_K_M | ~43 GB |
+| ID | HF repo | Quant | ~Size | Notes |
+|---|---|---|---|---|
+| `llama-3.1-8b-instruct` | `bartowski/Meta-Llama-3.1-8B-Instruct-GGUF` | Q4_K_M | ~5 GB | Meta mid-tier; headline 8B bridge |
+| `qwen3-32b` | `Qwen/Qwen3-32B-GGUF` | Q4_K_M | ~20 GB | Upper mid dense (single-file) |
+| `llama-3.3-70b-instruct` | `bartowski/Llama-3.3-70B-Instruct-GGUF` | Q4_K_M | ~43 GB | On-device ceiling |
+
+Full slate disk budget: **~80 GB** (sequential runs; purge-after-eval default).
+
+Avoid **358B MoE** models (e.g. GLM-4.7): Q4_K_M alone is ~216 GB and does not load on 128 GB unified memory.
 
 ## Prerequisites
 
@@ -96,7 +100,7 @@ On the DGX Spark host:
 - **podman** or **docker** with NVIDIA GPU support
 - **CUDA** drivers for aarch64 (Grace Blackwell)
 - **Python 3.10+** with ToolScope eval deps installed
-- **~110 GB** free disk for GGUF weights (gitignored under `eval/local/models/`)
+- **~80 GB** free disk for remaining GGUF weights (gitignored under `eval/local/models/`)
 - **huggingface-cli** or `hf` for weight download
 
 Set `TOOLSCOPE_INFERENCE_MODE=container` (default on host) to use the standalone `toolscope-llamacpp` image.
@@ -176,6 +180,7 @@ eval/local/scripts/stop_server.sh
 | [`scripts/stop_server.sh`](scripts/stop_server.sh) | Tear down the server container |
 | [`scripts/healthcheck.sh`](scripts/healthcheck.sh) | Poll `GET /v1/models` |
 | [`scripts/run_local_matrix.sh`](scripts/run_local_matrix.sh) | End-to-end orchestration |
+| [`scripts/purge_model.sh`](scripts/purge_model.sh) | Remove cached weights after each model (matrix default) |
 | [`smoke/tool_call_probe.py`](smoke/tool_call_probe.py) | Minimal `bind_tools` gate |
 
 ## Outputs
@@ -201,13 +206,13 @@ Frozen snapshot (git-tracked after a full run): `eval/paper/artifacts/local/`
 
 **OOM on 70B baseline (443 tools)**
 
-- Lower `context_size` for `llama-3.3-70b-instruct` in [`models.yaml`](models.yaml) (default 65536).
-- Reduce `n_gpu_layers` in `models.yaml` defaults.
+- Default `context_size` is **32768** for all models in [`models.yaml`](models.yaml).
+- Reduce further or lower `n_gpu_layers` in `models.yaml` defaults if needed.
 
 **Tool-call smoke fails**
 
 - Check `podman logs toolscope-llama`.
-- Qwen3 and GLM require `--jinja` (set in `models.yaml`).
+- Qwen3 requires `--jinja` (set in `models.yaml`).
 - Bump `LLAMA_CPP_TAG` in [`container/Containerfile`](container/Containerfile) if chat templates are outdated.
 
 **Eval HTTP timeouts**

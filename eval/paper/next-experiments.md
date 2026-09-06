@@ -56,14 +56,18 @@ keep separate ranked lists.
 
 - Official `bfcl-eval` AST as a sensitivity footnote.
 - Stronger embedder / reranker if sibling confusion at recall=1 still dominates.
-- Additional local quantizations (e.g. GLM UD-Q4_K_XL) for footprint sensitivity.
+- Additional local quantizations for footprint sensitivity (e.g. Q5_K_M on 70B).
 
 ## Implementation order
 
 1. Complete the local k=10 matrix via `eval/local/scripts/run_local_matrix.sh`.
 2. Freeze `table.md`, `summary.csv`, `harness_results.md` into `artifacts/local/`.
-3. `--skip-baseline` / nested k driver for local k-ablation.
-4. `stats_from_artifacts.py` on local JSONs.
+3. **Flip weight purge to opt-in.** Current matrix uses purge-after-eval by default
+   (`--keep-weights` to disable). After the full run lands, change the default to
+   keep weights and add `--purge-after-eval` for disk-tight hosts. Full slate is
+   ~80 GiB at Q4_K_M (dense models only; no GLM-4.7 MoE).
+4. `--skip-baseline` / nested k driver for local k-ablation.
+5. `stats_from_artifacts.py` on local JSONs.
 
 ## Out of scope until local k=10 lands
 

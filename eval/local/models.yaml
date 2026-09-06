@@ -1,13 +1,13 @@
 # Canonical registry for local GGUF models served via llama.cpp.
 # Used by download_models.sh, serve_model.sh, and run_local_matrix.sh.
 #
-# Three-tier comparative slate (DGX Spark benchmark):
+# Three-tier comparative slate (DGX Spark benchmark, ~128 GB unified memory):
 #   high_sensitivity  — largest ToolScope delta (~30% → 85%+ name accuracy)
-#   mid_production    — fast deployment sweet spot; does ToolScope lift 32B to frontier?
-#   control_ceiling   — top-tier open weights; speed/context/precision gains at ceiling
+#   mid_production    — edge-deployable agents (dense 8B + 32B; no 300B+ MoE)
+#   control_ceiling   — top-tier open weights that load on-device
 
 defaults:
-  context_size: 131072
+  context_size: 32768
   n_gpu_layers: 99
   host: 0.0.0.0
   port: 8000
@@ -23,9 +23,9 @@ tiers:
       - qwen2.5-7b-instruct
   mid_production:
     label: "Mid-Sized Production"
-    description: "Target sweet spot for fast, cost-effective deployment."
+    description: "Edge-deployable agent sweet spot (Meta 8B + Qwen 32B dense)."
     models:
-      - glm-4.7-32b
+      - llama-3.1-8b-instruct
       - qwen3-32b
   control_ceiling:
     label: "Control Ceiling"
@@ -55,27 +55,25 @@ models:
     timeout_seconds: 180
 
   # ── Mid-Sized Production tier ─────────────────────────────────────────────
-  glm-4.7-32b:
+  llama-3.1-8b-instruct:
     tier: mid_production
-    hf_repo: unsloth/GLM-4.7-GGUF
-    # Q8_0 is ~380GB sharded; Q4_K_M fits local disk (~20GB).
-    file_glob: "*Q4_K_M*.gguf"
-    hf_include: "Q4_K_M/*.gguf"
-    alias: glm-4.7-32b
-    server_extra_args:
-      - --jinja
-    context_size: 131072
-    timeout_seconds: 240
+    hf_repo: bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+    file_glob: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    hf_include: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    alias: llama-3.1-8b-instruct
+    server_extra_args: []
+    context_size: 32768
+    timeout_seconds: 180
 
   qwen3-32b:
     tier: mid_production
     hf_repo: Qwen/Qwen3-32B-GGUF
-    file_glob: "*Q4_K_M*.gguf"
-    hf_include: "*Q4_K_M*.gguf"
+    file_glob: "Qwen3-32B-Q4_K_M.gguf"
+    hf_include: "Qwen3-32B-Q4_K_M.gguf"
     alias: qwen3-32b
     server_extra_args:
       - --jinja
-    context_size: 131072
+    context_size: 32768
     timeout_seconds: 240
 
   # ── Control Ceiling tier ──────────────────────────────────────────────────
@@ -83,7 +81,8 @@ models:
     tier: control_ceiling
     hf_repo: bartowski/Llama-3.3-70B-Instruct-GGUF
     file_glob: "*Q4_K_M*.gguf"
+    hf_include: "*Q4_K_M*.gguf"
     alias: llama-3.3-70b-instruct
     server_extra_args: []
-    context_size: 65536
+    context_size: 32768
     timeout_seconds: 300

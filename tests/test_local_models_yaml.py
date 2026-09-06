@@ -13,9 +13,9 @@ LOCAL_CONFIG = Path(__file__).resolve().parents[1] / "eval" / "local" / "bfcl_mu
 EXPECTED_MODELS = {
     "llama-3.2-3b-instruct",
     "qwen2.5-7b-instruct",
-    "llama-3.3-70b-instruct",
+    "llama-3.1-8b-instruct",
     "qwen3-32b",
-    "glm-4.7-32b",
+    "llama-3.3-70b-instruct",
 }
 
 
@@ -44,7 +44,18 @@ def test_tier_metadata(models_registry: dict):
     assert "mid_production" in tiers
     assert "control_ceiling" in tiers
     assert models["qwen2.5-7b-instruct"]["tier"] == "high_sensitivity"
+    assert models["llama-3.1-8b-instruct"]["tier"] == "mid_production"
+    assert models["qwen3-32b"]["tier"] == "mid_production"
     assert models["llama-3.3-70b-instruct"]["tier"] == "control_ceiling"
+
+
+def test_mid_tier_single_file_quants(models_registry: dict):
+    models = models_registry.get("models") or {}
+    for mid in ("llama-3.1-8b-instruct", "qwen3-32b"):
+        spec = models[mid]
+        assert "hf_include" in spec
+        assert "Q4_K_M" in spec["file_glob"]
+        assert spec["context_size"] == 32768
 
 
 def test_model_aliases_unique(models_registry: dict):

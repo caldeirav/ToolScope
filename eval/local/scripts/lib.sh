@@ -308,3 +308,18 @@ gguf_path_in_models_mount() {
   local rel="${gguf#"${TOOLSCOPE_MODEL_CACHE}"/}"
   echo "/models/${rel}"
 }
+
+model_repo_dir() {
+  local model_id="$1"
+  local repo
+  repo="$(resolve_model_field "${model_id}" hf_repo)"
+  echo "${TOOLSCOPE_MODEL_CACHE}/${repo//\//__}"
+}
+
+cache_disk_free_gib() {
+  df -BG "${TOOLSCOPE_MODEL_CACHE}" 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}' || echo "?"
+}
+
+log_cache_disk() {
+  echo "  model cache: ${TOOLSCOPE_MODEL_CACHE} ($(cache_disk_free_gib) GiB free)"
+}

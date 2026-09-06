@@ -18,13 +18,13 @@ The paper protocol is documented in [`eval/paper/README.md`](paper/README.md). *
 
 ## Local GGUF models (DGX Spark)
 
-Serve three GGUF models via llama.cpp in podman and run the shared-catalog paper protocol:
+Serve five GGUF models via llama.cpp on DGX Spark and run the shared-catalog paper protocol:
 
 ```bash
 eval/local/scripts/run_local_matrix.sh
 ```
 
-Models: Llama 3.3 70B (Q4_K_M), Qwen3 32B (Q8_0), GLM-4.7 32B (Q8_0). Frozen results land in [`eval/paper/artifacts/local/`](paper/artifacts/local/). See [`eval/local/README.md`](local/README.md) for prerequisites, troubleshooting, and single-model runs.
+Models: Llama 3.2 3B + Qwen2.5 7B (SLM), Llama 3.1 8B + Qwen3 32B (mid), Llama 3.3 70B (ceiling). Frozen results land in [`eval/paper/artifacts/local/`](paper/artifacts/local/). See [`eval/local/README.md`](local/README.md) for prerequisites, troubleshooting, and single-model runs.
 
 ---
 

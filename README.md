@@ -301,7 +301,7 @@ examples/fastmcp/
 
 The `eval/` tree is a BFCL-based harness for **tool selection**, not a second product.
 
-It answers: does giving the model only the top-k retrieved tools beat binding a large catalog? Predictions are graded as static AST (no tool execution). The primary paper path runs **locally-served GGUF models** (SLM 3B–7B + agent 32–70B) via llama.cpp on DGX Spark; the default distractor-pool protocol still supports local Hugging Face models.
+It answers: does giving the model only the top-k retrieved tools beat binding a large catalog? Predictions are graded as static AST (no tool execution). The primary paper path runs **locally-served GGUF models** (SLM 3B–7B, mid 8B–32B, ceiling 70B) via llama.cpp on DGX Spark; the default distractor-pool protocol still supports local Hugging Face models.
 
 Three protocols share `eval/run_eval.py`:
 

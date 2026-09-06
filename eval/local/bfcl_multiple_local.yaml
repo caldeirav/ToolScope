@@ -21,7 +21,8 @@ model:
     - name: qwen2.5-7b-instruct
       timeout_seconds: 180
     # Mid-Sized Production tier
-    - name: glm-4.7-32b
+    - name: llama-3.1-8b-instruct
+      timeout_seconds: 180
     - name: qwen3-32b
     # Control Ceiling tier
     - name: llama-3.3-70b-instruct
