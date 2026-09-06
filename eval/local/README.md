@@ -181,6 +181,7 @@ eval/local/scripts/stop_server.sh
 | [`scripts/healthcheck.sh`](scripts/healthcheck.sh) | Poll `GET /v1/models` |
 | [`scripts/run_local_matrix.sh`](scripts/run_local_matrix.sh) | End-to-end orchestration |
 | [`scripts/purge_model.sh`](scripts/purge_model.sh) | Remove cached weights after each model (matrix default) |
+| [`scripts/prefetch_models.sh`](scripts/prefetch_models.sh) | Sequential background download queue (used during eval) |
 | [`smoke/tool_call_probe.py`](smoke/tool_call_probe.py) | Minimal `bind_tools` gate |
 
 ## Outputs

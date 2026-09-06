@@ -1,43 +1,45 @@
-# Frozen local GGUF matrix
+# Local GGUF matrix — progress snapshot
 
-BFCL V4 Non-Live Multiple, shared catalog **C = 443**, **k ∈ {5, 10, 20}**, MiniLM-L6-v2.
-**n = 200** per model. Scores are BFCL-derived, not official Gorilla numbers.
+> **In progress:** 2 of 5 models complete at n=200. `llama-3.1-8b-instruct` evaluating;
+> `qwen3-32b` and `llama-3.3-70b-instruct` prefetching. This README will be replaced
+> by the frozen run-of-record when the matrix finishes.
 
-## Value proposition
+BFCL V4 Non-Live Multiple, shared catalog **C = 443**, **k = 10** (anchor; k-ablation
+{k ∈ 5, 10, 20} in [`harness_results.md`](harness_results.md)), MiniLM-L6-v2.
+**n = 200** per completed model. Scores are BFCL-derived, not official Gorilla numbers.
 
-ToolScope filters 50+ candidate tools down to the **3–5 most relevant** before the LLM
-ever sees them. On smaller models this produces a dramatic, measurable jump in tool
-selection accuracy (often **~30% baseline → 85%+ with ToolScope**). The headline claim:
-**an 8B model with ToolScope can match the tool-calling reliability of a 70B model
-without it.**
+Runtime writes go to gitignored `eval/results/paper/local/`. This directory is the
+checked-in **progress** snapshot (same layout as the historical API matrix in
+[`../README.md`](../README.md)).
 
-## Three-tier comparative slate
-
-| Tier | Models | Role |
+| Model | Source file (gitignored) | SHA-256 |
 |---|---|---|
-| **High-Sensitivity SLM** | `qwen2.5-7b-instruct`, `llama-3.2-3b-instruct` | Primary testbed — largest ToolScope delta |
-| **Mid-Sized Production** | `llama-3.1-8b-instruct`, `qwen3-32b` | Edge agents (Meta 8B bridge + Qwen 32B dense) |
-| **Control Ceiling** | `llama-3.3-70b-instruct` | Top-tier open weights that load on 128 GB Spark |
+| llama-3.2-3b-instruct | `bfcl_eval_llama-3.2-3b-instruct_1788642468.json` | `8ca48c218af824ee6369a1c55471621e7b8492b65dff3121a5374fd20ecce2d6` |
+| qwen2.5-7b-instruct | `bfcl_eval_qwen2.5-7b-instruct_1788656165.json` | `1ce620d6bacc9bd0d77ad2d97fd1403c16bd5339bf22025bbefd51b726bdb45d` |
+| llama-3.1-8b-instruct | — | *eval in progress* |
+| qwen3-32b | — | *prefetch queued* |
+| llama-3.3-70b-instruct | — | *prefetch queued* |
 
-```bash
-eval/local/scripts/run_local_matrix.sh --tier high_sensitivity   # SLM tier (done)
-eval/local/scripts/run_local_matrix.sh --tier mid_production       # mid tier only
-eval/local/scripts/run_local_matrix.sh                             # full 5-model matrix
-```
+## Tool name accuracy
 
-**Note:** `glm-4.7-32b` was removed from the slate — GLM-4.7 is a 358B MoE (~216 GB Q4_K_M)
-and does not fit DGX Spark unified memory. Partial dry-run rows in older artifacts are stale.
+| Model | Baseline | BM25 | ToolScope | Δ ToolScope vs baseline |
+|---|---|---|---|---|
+| llama-3.2-3b-instruct | 2.5% | 85.5% | **84.5%** | **+82.0 pp** (McNemar exact p < 0.001; +165 / −1) |
+| qwen2.5-7b-instruct | 40.0% | 86.0% | **87.0%** | **+47.0 pp** (McNemar exact p < 0.001; +104 / −10) |
 
-## Results
+BM25 / ToolScope columns are **@k=10** (`BM25@10`, `ToolScope@10` in the full matrix).
 
-_SLM tier complete (n=200). Mid + ceiling in progress._
+## AST accuracy
 
-| Model | Tier | Baseline | BM25@10 | ToolScope@10 | Δ ToolScope vs baseline |
-|---|---|---|---|---|---|
-| llama-3.2-3b-instruct | High-Sensitivity SLM | 2.5% | — | 84.5% | +82.0 pp |
-| qwen2.5-7b-instruct | High-Sensitivity SLM | 40.0% | — | 87.0% | +47.0 pp |
-| llama-3.1-8b-instruct | Mid-Sized Production | — | — | — | — |
-| qwen3-32b | Mid-Sized Production | — | — | — | — |
-| llama-3.3-70b-instruct | Control Ceiling | — | — | — | — |
+| Model | Baseline | BM25 | ToolScope |
+|---|---|---|---|
+| llama-3.2-3b-instruct | 2.0% | 47.0% | 46.5% |
+| qwen2.5-7b-instruct | 23.5% | 53.5% | 53.5% |
 
-Historical API-model results: [`../README.md`](../README.md).
+Retrieval (identical across models): BM25 Recall@10 **97.0%** / NDCG **0.881**;
+ToolScope Recall@10 **98.5%** / NDCG **0.885**. Compression **97.7%**
+(~60,051 → ~1,362 prompt tokens at k=10).
+
+See [harness_results.md](harness_results.md) for the analysis (name/AST, McNemar, error taxonomy, flips).
+[table.md](table.md) and [summary.csv](summary.csv) are the compact matrix (includes k-ablation columns).
+Historical API-model results: [`../README.md`](../README.md). Follow-up experiments: [../../next-experiments.md](../../next-experiments.md).

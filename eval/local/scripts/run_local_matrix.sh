@@ -126,14 +126,48 @@ fi
 
 log_cache_disk
 
-for MODEL_ID in "${IDS[@]}"; do
+PREFETCH_PID=""
+start_prefetch_queue() {
+  local -a remaining=("$@")
+  if [[ "${SKIP_DOWNLOAD}" == "true" || "${DRY_RUN}" == "true" || ${#remaining[@]} -eq 0 ]]; then
+    return
+  fi
+  if [[ -n "${PREFETCH_PID}" ]] && kill -0 "${PREFETCH_PID}" 2>/dev/null; then
+    return
+  fi
+  local -a args=()
+  for mid in "${remaining[@]}"; do
+    args+=(--model "$mid")
+  done
+  echo "Prefetch queue (sequential, background): ${remaining[*]}"
+  "${SCRIPT_DIR}/prefetch_models.sh" "${args[@]}" &
+  PREFETCH_PID=$!
+}
+
+wait_prefetch() {
+  if [[ -n "${PREFETCH_PID}" ]] && kill -0 "${PREFETCH_PID}" 2>/dev/null; then
+    echo "Waiting for background prefetch (PID ${PREFETCH_PID}) ..."
+    wait "${PREFETCH_PID}" || echo "warning: prefetch exited non-zero" >&2
+  fi
+  PREFETCH_PID=""
+}
+
+for i in "${!IDS[@]}"; do
+  MODEL_ID="${IDS[$i]}"
+  REMAINING=()
+  if [[ $i -lt $((${#IDS[@]} - 1)) ]]; then
+    REMAINING=("${IDS[@]:$((i + 1))}")
+  fi
   ALIAS="$(resolve_model_field "${MODEL_ID}" alias)"
   echo ""
   echo "========== ${MODEL_ID} (${ALIAS}) =========="
   log_cache_disk
 
   if [[ "${SKIP_DOWNLOAD}" != "true" ]]; then
-    if ! "${SCRIPT_DIR}/download_models.sh" --model "${MODEL_ID}"; then
+    wait_prefetch
+    if find_gguf_path "${MODEL_ID}" >/dev/null 2>&1; then
+      echo "Weights already present for ${MODEL_ID}; skipping download"
+    elif ! "${SCRIPT_DIR}/download_models.sh" --model "${MODEL_ID}"; then
       echo "warning: download failed for ${MODEL_ID}; skipping model" >&2
       continue
     fi
@@ -147,6 +181,7 @@ for MODEL_ID in "${IDS[@]}"; do
 
   EVAL_OK=true
   if [[ "${SKIP_EVAL}" != "true" ]]; then
+    start_prefetch_queue "${REMAINING[@]}"
     EVAL_OK=false
     if (
       cd "${REPO_ROOT}"
@@ -171,6 +206,8 @@ for MODEL_ID in "${IDS[@]}"; do
     fi
   fi
 done
+
+wait_prefetch
 
 echo ""
 echo "Done."
