@@ -22,6 +22,7 @@ env/
 eval/.bfcl_cache/
 eval/results/
 eval/local/models/
+eval/local/vendor/
 eval/local/.podman/
 
 # Secrets

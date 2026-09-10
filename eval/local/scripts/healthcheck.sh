@@ -29,7 +29,15 @@ while true; do
   fi
   if (( $(date +%s) >= deadline )); then
     echo "error: server not ready after ${TIMEOUT}s" >&2
-    ctr logs "$(container_name)" 2>&1 | tail -40 || true
+    if [[ "$(inference_mode)" == "native" ]]; then
+      LOG="$(llama_log_file)"
+      if [[ -f "${LOG}" ]]; then
+        echo "--- llama-server log (tail) ---" >&2
+        tail -40 "${LOG}" >&2 || true
+      fi
+    elif command -v docker >/dev/null 2>&1 || command -v podman >/dev/null 2>&1; then
+      ctr logs "$(container_name)" 2>&1 | tail -40 || true
+    fi
     exit 1
   fi
   sleep "${INTERVAL}"

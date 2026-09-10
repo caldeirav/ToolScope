@@ -224,17 +224,22 @@ PY
       return 0
     fi
   fi
-  local glob_pattern
+  local glob_pattern repo_dir
   glob_pattern="$(resolve_model_field "${model_id}" file_glob)"
+  repo_dir="$(model_repo_dir "${model_id}")"
+  if [[ ! -d "${repo_dir}" ]]; then
+    echo "error: no model repo for ${model_id}: ${repo_dir}" >&2
+    return 1
+  fi
   local picked
-  picked="$(python3 - "${TOOLSCOPE_MODEL_CACHE}" "${glob_pattern}" <<'PY'
+  picked="$(python3 - "${repo_dir}" "${glob_pattern}" <<'PY'
 import fnmatch, re, sys
 from pathlib import Path
 
-cache = Path(sys.argv[1])
+repo_dir = Path(sys.argv[1])
 glob_pat = sys.argv[2]
 matches = [
-    p for p in cache.rglob("*.gguf")
+    p for p in repo_dir.rglob("*.gguf")
     if fnmatch.fnmatch(p.name, glob_pat)
 ]
 if not matches:
@@ -252,7 +257,7 @@ PY
     echo "${picked}"
     return 0
   fi
-  echo "error: no GGUF for ${model_id} under ${TOOLSCOPE_MODEL_CACHE}" >&2
+  echo "error: no GGUF for ${model_id} under ${repo_dir} (glob: ${glob_pattern})" >&2
   return 1
 }
 

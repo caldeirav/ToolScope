@@ -17,11 +17,11 @@ SKIP_EVAL=false
 USE_DEVCONTAINER=false
 TIER_FILTER=""
 KEEP_WEIGHTS=false
-# Free disk between models (32B/70B weights do not fit alongside each other).
+# Keep weights by default; opt in to purge when disk is tight (e.g. first full matrix).
 if [[ -n "${TOOLSCOPE_PURGE_AFTER_EVAL:-}" ]]; then
   PURGE_AFTER_EVAL="${TOOLSCOPE_PURGE_AFTER_EVAL}"
 else
-  PURGE_AFTER_EVAL=true
+  PURGE_AFTER_EVAL=false
 fi
 
 usage() {
@@ -38,7 +38,8 @@ Usage: $0 [options]
   --samples <n>       Limit BFCL instances (pilot runs)
   --dry-run           Use dummy model in eval (no live LLM calls)
   --no-resume         Disable checkpoint resume per model
-  --keep-weights      Keep GGUF weights on disk after each model (default: purge)
+  --keep-weights      Keep GGUF weights on disk after each model (default)
+  --purge-after-eval  Delete weights after each successful eval (saves disk)
   -h, --help          Show this help
 
 Tiers:
@@ -63,6 +64,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=true; shift ;;
     --no-resume) NO_RESUME=true; shift ;;
     --keep-weights) KEEP_WEIGHTS=true; PURGE_AFTER_EVAL=false; shift ;;
+    --purge-after-eval) PURGE_AFTER_EVAL=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown arg: $1" >&2; usage; exit 1 ;;
   esac
@@ -174,9 +176,22 @@ for i in "${!IDS[@]}"; do
   fi
 
   if [[ "${DRY_RUN}" != "true" ]]; then
-    "${SCRIPT_DIR}/serve_model.sh" "${MODEL_ID}"
-    "${SCRIPT_DIR}/healthcheck.sh"
-    python3 "${LOCAL_DIR}/smoke/tool_call_probe.py" --model "${ALIAS}"
+    if ! "${SCRIPT_DIR}/serve_model.sh" "${MODEL_ID}"; then
+      echo "warning: serve failed for ${MODEL_ID}; skipping model" >&2
+      continue
+    fi
+    HC_TIMEOUT="$(resolve_model_field "${MODEL_ID}" healthcheck_timeout_seconds 2>/dev/null || true)"
+    HC_TIMEOUT="${HC_TIMEOUT:-1200}"
+    if ! HEALTHCHECK_TIMEOUT="${HC_TIMEOUT}" "${SCRIPT_DIR}/healthcheck.sh"; then
+      echo "warning: healthcheck failed for ${MODEL_ID}; skipping model" >&2
+      "${SCRIPT_DIR}/stop_server.sh" 2>/dev/null || true
+      continue
+    fi
+    if ! python3 "${LOCAL_DIR}/smoke/tool_call_probe.py" --model "${ALIAS}"; then
+      echo "warning: smoke test failed for ${MODEL_ID}; skipping model" >&2
+      "${SCRIPT_DIR}/stop_server.sh" 2>/dev/null || true
+      continue
+    fi
   fi
 
   EVAL_OK=true

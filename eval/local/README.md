@@ -31,7 +31,7 @@ Historical API-model artifacts remain in [`eval/paper/artifacts/`](../paper/arti
 
 Reopen this repo in the **ToolScope + llama.cpp** devcontainer. It includes:
 
-- CUDA **llama-server** (aarch64, llama.cpp b4897)
+- CUDA **llama-server** (aarch64, llama.cpp b6985+, **CUDA 13.0** / GB10 `121a-real`)
 - Python eval harness (post-create installs ToolScope + eval deps)
 - **Native inference** — `serve_model.sh` starts `llama-server` directly (no nested containers)
 

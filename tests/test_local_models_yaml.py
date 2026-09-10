@@ -51,11 +51,15 @@ def test_tier_metadata(models_registry: dict):
 
 def test_mid_tier_single_file_quants(models_registry: dict):
     models = models_registry.get("models") or {}
-    for mid in ("llama-3.1-8b-instruct", "qwen3-32b"):
+    for mid in ("llama-3.1-8b-instruct",):
         spec = models[mid]
         assert "hf_include" in spec
         assert "Q4_K_M" in spec["file_glob"]
         assert spec["context_size"] == 32768
+    qwen3 = models["qwen3-32b"]
+    assert "hf_include" in qwen3
+    assert "Q4_K_M" in qwen3["file_glob"]
+    assert qwen3["context_size"] == 16384
 
 
 def test_model_aliases_unique(models_registry: dict):
