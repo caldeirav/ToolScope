@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 
@@ -52,7 +53,23 @@ def main() -> int:
     )
 
     bound = llm.bind_tools([get_weather])
-    ai = bound.invoke("What is the weather in Paris? Call the tool.")
+    retries = int(os.environ.get("SMOKE_LOAD_RETRIES", "24"))
+    delay = float(os.environ.get("SMOKE_LOAD_DELAY_SECONDS", "15"))
+    last_err: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            ai = bound.invoke("What is the weather in Paris? Call the tool.")
+            break
+        except Exception as exc:
+            last_err = exc
+            msg = str(exc)
+            if "503" in msg and "Loading model" in msg and attempt < retries:
+                print(f"waiting for model load ({attempt}/{retries}) ...", file=sys.stderr)
+                time.sleep(delay)
+                continue
+            raise
+    else:
+        raise last_err  # type: ignore[misc]
     tool_calls = getattr(ai, "tool_calls", None) or []
     if not tool_calls:
         content = getattr(ai, "content", "")

@@ -37,18 +37,17 @@ else
   echo "Using existing toolscope-dev image (set REBUILD_IMAGE=1 to force rebuild)."
 fi
 
-MATRIX_ARGS=(--skip-build --purge-after-eval --model qwen3-32b --model llama-3.3-70b-instruct)
+# Release startup lock before backgrounding (child cannot flock while we hold fd 9).
+exec 9>&-
 
 nohup bash -lc "
-  flock -n '${LOCK}' -c '
-    cd \"${REPO_ROOT}\"
-    eval/local/scripts/run_in_devcontainer.sh \
-      eval/local/scripts/run_local_matrix.sh \
-      --skip-build --purge-after-eval \
-      --model qwen3-32b --model llama-3.3-70b-instruct \
-      2>&1 | tee \"${MATRIX_LOG}\"
-  '
-" >/dev/null 2>&1 &
+  cd \"${REPO_ROOT}\"
+  eval/local/scripts/run_in_devcontainer.sh \
+    eval/local/scripts/run_local_matrix.sh \
+    --skip-build --purge-after-eval \
+    --model qwen3-32b --model llama-3.3-70b-instruct \
+    2>&1 | tee \"${MATRIX_LOG}\"
+" >>/tmp/toolscope-matrix.nohup.log 2>&1 &
 echo "matrix_pid=$!"
 
 nohup env TOOLSCOPE_MATRIX_LOG="${MATRIX_LOG}" TOOLSCOPE_WATCH_LOG="${WATCH_LOG}" \
