@@ -72,6 +72,7 @@ ctr run --rm \
   -e OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
   -e OPENAI_API_KEY=local \
   -e TOOLSCOPE_MODEL_CACHE=/workspace/eval/local/models \
+  -e LD_LIBRARY_PATH=/opt/llama.cpp/bin \
   -w /workspace \
   "${IMAGE}" \
-  bash -lc "${REMOTE_CMD}"
+  bash -lc "source eval/local/scripts/cuda_runtime_env.sh && cuda_runtime_env && ${REMOTE_CMD}"

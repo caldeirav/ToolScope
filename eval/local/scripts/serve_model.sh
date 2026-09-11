@@ -26,6 +26,14 @@ PORT="$(server_port)"
 
 if [[ "${MODE}" == "native" ]]; then
   require_cmd llama-server
+  if [[ -f /usr/local/bin/toolscope-cuda-runtime-env.sh ]]; then
+    # shellcheck source=/dev/null
+    source /usr/local/bin/toolscope-cuda-runtime-env.sh
+  else
+    # shellcheck source=cuda_runtime_env.sh
+    source "${SCRIPT_DIR}/cuda_runtime_env.sh"
+  fi
+  cuda_runtime_env
   LOG="$(llama_log_file)"
   PIDFILE="$(llama_pid_file)"
 

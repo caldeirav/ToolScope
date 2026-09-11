@@ -21,6 +21,7 @@ pkill -f 'resume3_orchestrate|matrix_resume3_waiter' 2>/dev/null || true
 pkill -f 'llama-server' 2>/dev/null || true
 pkill -f 'hf download.*Llama-3.3-70B' 2>/dev/null || true
 pkill -f 'docker build.*toolscope-dev' 2>/dev/null || true
+docker ps -q --filter ancestor=toolscope-dev:latest 2>/dev/null | xargs -r docker kill 2>/dev/null || true
 sleep 3
 
 find "${REPO_ROOT}/eval/local/models" -name '*.lock' -delete 2>/dev/null || true
@@ -44,7 +45,7 @@ nohup bash -lc "
   cd \"${REPO_ROOT}\"
   eval/local/scripts/run_in_devcontainer.sh \
     eval/local/scripts/run_local_matrix.sh \
-    --skip-build --purge-after-eval \
+    --skip-build \
     --model qwen3-32b --model llama-3.3-70b-instruct \
     2>&1 | tee \"${MATRIX_LOG}\"
 " >>/tmp/toolscope-matrix.nohup.log 2>&1 &

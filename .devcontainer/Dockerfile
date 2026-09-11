@@ -52,11 +52,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=llama-builder /opt/llama.cpp/bin/ /opt/llama.cpp/bin/
 ENV PATH=/opt/llama.cpp/bin:${PATH}
-# Runtime: GB10 compat driver libs + llama shared objects.
-ENV LD_LIBRARY_PATH=/opt/llama.cpp/bin:/usr/local/cuda-13/compat:${LD_LIBRARY_PATH}
+# Runtime: llama shared objects only. Host libcuda comes from nvidia-container-toolkit.
+# Do not prepend cuda-*/compat here — on current GB10 drivers that causes error 803
+# (see llama.cpp #23111). Compat is build-stage only (llama-builder above).
+ENV LD_LIBRARY_PATH=/opt/llama.cpp/bin:${LD_LIBRARY_PATH}
 RUN ln -sf /opt/llama.cpp/bin/llama-server /usr/local/bin/llama-server
+COPY eval/local/scripts/cuda_runtime_env.sh /usr/local/bin/toolscope-cuda-runtime-env.sh
 COPY eval/local/container/entrypoint.sh /usr/local/bin/llama-entrypoint.sh
-RUN chmod +x /usr/local/bin/llama-entrypoint.sh
+RUN chmod +x /usr/local/bin/toolscope-cuda-runtime-env.sh /usr/local/bin/llama-entrypoint.sh
 
 WORKDIR /workspace
 

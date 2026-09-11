@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=/dev/null
+source /usr/local/bin/toolscope-cuda-runtime-env.sh
+cuda_runtime_env
+
 : "${MODEL_PATH:?MODEL_PATH is required}"
 : "${MODEL_ALIAS:?MODEL_ALIAS is required}"
 
