@@ -1,6 +1,6 @@
-# Local GGUF matrix — progress snapshot
+# Frozen local GGUF k=10 matrix
 
-> **In progress:** 4 of 5 models at n=200. This snapshot updates until the matrix finishes.
+
 
 BFCL V4 Non-Live Multiple, shared catalog **C = 443**, **k = 10** (anchor; k-ablation
 {k ∈ 5, 10, 20} in [`harness_results.md`](harness_results.md)), MiniLM-L6-v2.
@@ -16,13 +16,14 @@ checked-in snapshot of the run of record (same layout as the historical API matr
 | qwen2.5-7b-instruct | `bfcl_eval_qwen2.5-7b-instruct_1788656165.json` | `1ce620d6bacc9bd0d77ad2d97fd1403c16bd5339bf22025bbefd51b726bdb45d` |
 | llama-3.1-8b-instruct | `bfcl_eval_llama-3.1-8b-instruct_1788679598.json` | `24cd33f6ae875b71df8e22fbb4d3838660b447a99558a12cc5340e2bd411fff1` |
 | qwen3-32b | `bfcl_eval_qwen3-32b_1789153185.json` | `904c74810043755e3596a8eccdac20b4c40b8f9ebb995b4ee077074eba979b78` |
-| llama-3.3-70b-instruct | — | *pending* |
+| llama-3.3-70b-instruct | `bfcl_eval_llama-3.3-70b-instruct_1789162497.json` | `cf497b1f69e693388bbf8ce0e818ca558fde338d33522938b1e9a9aaa0b875c7` |
 
 ## Tool name accuracy
 
 | Model | Baseline | BM25 | ToolScope | Δ ToolScope vs baseline |
 |---|---|---|---|---|
 | qwen3-32b | 0.0% | 79.5% | **78.0%** | **+78.0 pp** (McNemar exact p = < 0.001; +156 / −0) |
+| llama-3.3-70b-instruct | 0.0% | 38.5% | **38.0%** | **+38.0 pp** (McNemar exact p = < 0.001; +76 / −0) |
 | llama-3.2-3b-instruct | 2.5% | 85.5% | **84.5%** | **+82.0 pp** (McNemar exact p = < 0.001; +165 / −1) |
 | llama-3.1-8b-instruct | 6.0% | 91.5% | **92.0%** | **+86.0 pp** (McNemar exact p = < 0.001; +173 / −1) |
 | qwen2.5-7b-instruct | 40.0% | 86.0% | **87.0%** | **+47.0 pp** (McNemar exact p = < 0.001; +104 / −10) |
@@ -34,6 +35,7 @@ BM25 / ToolScope columns are **@k=10** (`BM25@10`, `ToolScope@10` in the full ma
 | Model | Baseline | BM25 | ToolScope |
 |---|---|---|---|
 | qwen3-32b | 0.0% | 50.0% | 49.0% |
+| llama-3.3-70b-instruct | 0.0% | 27.0% | 27.5% |
 | llama-3.2-3b-instruct | 2.0% | 47.0% | 46.5% |
 | llama-3.1-8b-instruct | 3.5% | 50.5% | 52.0% |
 | qwen2.5-7b-instruct | 23.5% | 53.5% | 53.5% |

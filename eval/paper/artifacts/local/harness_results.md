@@ -6,7 +6,7 @@ Protocol: `shared_catalog`. BFCL-derived; **not** an official Gorilla leaderboar
 | | |
 |---|---|
 | Queries scored | 200 per model |
-| Models | 4 |
+| Models | 5 |
 | Catalog C | 443 tools |
 | Context compression at k=10 | 97.7% |
 | Largest name-acc Δ vs baseline | +86.0 pp (llama-3.1-8b-instruct, ToolScope@10) |
@@ -14,7 +14,7 @@ Protocol: `shared_catalog`. BFCL-derived; **not** an official Gorilla leaderboar
 
 ---
 
-Skipped instances: **0**. `api_fail` on at least one condition: **222** queries across the matrix.
+Skipped instances: **0**. `api_fail` on at least one condition: **422** queries across the matrix.
 
 ## Tool name accuracy (headline)
 
@@ -22,6 +22,7 @@ Share of queries where the model called a ground-truth tool name. Retrieval metr
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
+| llama-3.3-70b-instruct | 0.0% | 37.5% | 38.5% | 38.5% | 37.5% | 38.0% | 38.0% |
 | qwen3-32b | 0.0% | 76.5% | 79.5% | 79.0% | 78.0% | 78.0% | 78.0% |
 | llama-3.2-3b-instruct | 2.5% | 85.0% | 85.5% | 82.5% | 84.5% | 84.5% | 83.5% |
 | llama-3.1-8b-instruct | 6.0% | 89.0% | 91.5% | 89.5% | 90.5% | 92.0% | 92.5% |
@@ -35,6 +36,7 @@ Selection gain shrinks as baseline name accuracy rises. McNemar is exact two-sid
 
 | Model | Baseline name acc | BM25 Δ | ToolScope Δ | ToolScope@10 flips (win/lose) | McNemar p |
 |---|---:|---:|---:|---|---:|
+| llama-3.3-70b-instruct | 0.0% | +38.5 pp | +38.0 pp | +76 / −0 | < 0.001 |
 | qwen3-32b | 0.0% | +79.5 pp | +78.0 pp | +156 / −0 | < 0.001 |
 | llama-3.2-3b-instruct | 2.5% | +83.0 pp | +82.0 pp | +165 / −1 | < 0.001 |
 | llama-3.1-8b-instruct | 6.0% | +85.5 pp | +86.0 pp | +173 / −1 | < 0.001 |
@@ -44,6 +46,13 @@ Selection gain shrinks as baseline name accuracy rises. McNemar is exact two-sid
 
 | Model | Condition | Name acc | AST acc | Δ name | Recall@10 | NDCG@10 | Mean latency |
 |---|---|---:|---:|---:|---:|---:|---:|
+| llama-3.3-70b-instruct | Baseline | 0.0% | 0.0% | — | — | — | 926 ms |
+| llama-3.3-70b-instruct | BM25@5 | 37.5% | 26.5% | +37.5 pp | 95.0% | 0.874 | 7.4 s |
+| llama-3.3-70b-instruct | BM25@10 | 38.5% | 27.0% | +38.5 pp | 97.0% | 0.881 | 7.1 s |
+| llama-3.3-70b-instruct | BM25@20 | 38.5% | 27.0% | +38.5 pp | 99.0% | 0.886 | 8.6 s |
+| llama-3.3-70b-instruct | ToolScope@5 | 37.5% | 27.5% | +37.5 pp | 96.0% | 0.877 | 6.6 s |
+| llama-3.3-70b-instruct | ToolScope@10 | 38.0% | 27.5% | +38.0 pp | 98.5% | 0.885 | 6.9 s |
+| llama-3.3-70b-instruct | ToolScope@20 | 38.0% | 27.0% | +38.0 pp | 99.5% | 0.888 | 8.5 s |
 | qwen3-32b | Baseline | 0.0% | 0.0% | — | — | — | 357 ms |
 | qwen3-32b | BM25@5 | 76.5% | 47.5% | +76.5 pp | 95.0% | 0.874 | 62.4 s |
 | qwen3-32b | BM25@10 | 79.5% | 50.0% | +79.5 pp | 97.0% | 0.881 | 68.0 s |
@@ -81,6 +90,7 @@ Name selection does not close the AST gap. Leftover error after a correct name i
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
+| llama-3.3-70b-instruct | 0.0% | 26.5% | 27.0% | 27.0% | 27.5% | 27.5% | 27.0% |
 | qwen3-32b | 0.0% | 47.5% | 50.0% | 52.0% | 49.5% | 49.0% | 48.5% |
 | llama-3.2-3b-instruct | 2.0% | 47.5% | 47.0% | 44.5% | 47.5% | 46.5% | 44.0% |
 | llama-3.1-8b-instruct | 3.5% | 49.5% | 50.5% | 49.0% | 49.0% | 52.0% | 52.0% |
@@ -90,6 +100,7 @@ Name selection does not close the AST gap. Leftover error after a correct name i
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
+| llama-3.3-70b-instruct | — | 70.7% | 70.1% | 70.1% | 73.3% | 72.4% | 71.1% |
 | qwen3-32b | — | 62.1% | 62.9% | 65.8% | 63.5% | 62.8% | 62.2% |
 | llama-3.2-3b-instruct | 80.0% | 55.9% | 55.0% | 53.9% | 56.2% | 55.0% | 52.7% |
 | llama-3.1-8b-instruct | 58.3% | 55.6% | 55.2% | 54.7% | 54.1% | 56.5% | 56.2% |
@@ -103,6 +114,13 @@ Counts. Fully correct (name + AST) is listed first; the rest are the error taxon
 
 | Model | Condition | Fully correct | bad_args | wrong_tool | parse_fail | no_call | retrieval_miss | api_fail |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
+| llama-3.3-70b-instruct | Baseline | 0 | 0 | 0 | 0 | 0 | 0 | 200 |
+| llama-3.3-70b-instruct | BM25@5 | 53 | 22 | 4 | 1 | 0 | 3 | 117 |
+| llama-3.3-70b-instruct | BM25@10 | 54 | 23 | 3 | 1 | 0 | 2 | 117 |
+| llama-3.3-70b-instruct | BM25@20 | 54 | 23 | 4 | 0 | 0 | 2 | 117 |
+| llama-3.3-70b-instruct | ToolScope@5 | 55 | 20 | 6 | 0 | 0 | 1 | 118 |
+| llama-3.3-70b-instruct | ToolScope@10 | 55 | 21 | 6 | 0 | 0 | 0 | 118 |
+| llama-3.3-70b-instruct | ToolScope@20 | 54 | 22 | 6 | 0 | 0 | 0 | 118 |
 | qwen3-32b | Baseline | 0 | 0 | 0 | 0 | 0 | 0 | 200 |
 | qwen3-32b | BM25@5 | 95 | 58 | 15 | 5 | 0 | 7 | 20 |
 | qwen3-32b | BM25@10 | 100 | 59 | 12 | 4 | 0 | 4 | 21 |
@@ -135,6 +153,17 @@ Counts. Fully correct (name + AST) is listed first; the rest are the error taxon
 qwen3-32b's ToolScope@10 name-acc gain is almost entirely fewer `wrong_tool` (0 → 17), not better arguments.
 
 ## ToolScope@10 vs baseline name-acc flips
+
+### llama-3.3-70b-instruct
+
+Name acc 0.0% → 38.0% (+38.0 pp). Flips +76 / −0, McNemar p = < 0.001.
+
+Wins (baseline wrong, retriever right):
+- `multiple_66` GT `traffic_estimate`: baseline `—` → ToolScope@10 `traffic_estimate` (recall=1). How much traffic should I expect from Las Vegas to Los Angeles this weekend?
+- `multiple_187` GT `whole_foods.check_price`: baseline `—` → ToolScope@10 `whole_foods.check_price` (recall=1). Check the price of tomatoes and lettuce at the Whole Foods in Los Angeles.
+- `multiple_101` GT `math.gcd`: baseline `—` → ToolScope@10 `math.gcd` (recall=1). Find the greatest common divisor (GCD) of 12 and 18
+- `multiple_193` GT `maps.get_distance_duration`: baseline `—` → ToolScope@10 `maps.get_distance_duration` (recall=1). Get me the travel distance and duration from the Eiffel Tower to the Louvre Museum
+- `multiple_111` GT `calculate_genotype_frequency`: baseline `—` → ToolScope@10 `calculate_genotype_frequency` (recall=1). What is the genotype frequency of AA genotype in a population, given that allele freque...
 
 ### qwen3-32b
 
@@ -208,20 +237,20 @@ Losses (baseline right, retriever wrong):
 | ToolScope@10 | 98.5% | 0.885 | 3 / 200 | 1,362 |
 | ToolScope@20 | 99.5% | 0.888 | 1 / 200 | 2,700 |
 
-When ToolScope@10 recall is 1, name acc is 79.2% on the first model's traces. When recall is 0, name acc is 0% — the agent cannot call a tool that is not bound.
+When ToolScope@10 recall is 1, name acc is 38.6% on the first model's traces. When recall is 0, name acc is 0% — the agent cannot call a tool that is not bound.
 Missed ground-truth names: `linear_regression`, `probabilities.calculate_single`, `route_planner.calculate_route`.
 
 ## Catalog hazards
 
 | Hazard | Count | Effect on scores |
 |---|---:|---|
-| Same name, different schema (first-seen kept) | 42 records / 33 names | qwen3-32b ToolScope@10 name acc 72.0% on 25 colliding-GT queries vs 78.9% on 175 others; llama-3.2-3b-instruct ToolScope@10 name acc 80.0% on 25 colliding-GT queries vs 85.1% on 175 others; llama-3.1-8b-instruct ToolScope@10 name acc 84.0% on 25 colliding-GT queries vs 93.1% on 175 others; qwen2.5-7b-instruct ToolScope@10 name acc 68.0% on 25 colliding-GT queries vs 89.7% on 175 others |
+| Same name, different schema (first-seen kept) | 42 records / 33 names | llama-3.3-70b-instruct ToolScope@10 name acc 32.0% on 25 colliding-GT queries vs 38.9% on 175 others; qwen3-32b ToolScope@10 name acc 72.0% on 25 colliding-GT queries vs 78.9% on 175 others; llama-3.2-3b-instruct ToolScope@10 name acc 80.0% on 25 colliding-GT queries vs 85.1% on 175 others; llama-3.1-8b-instruct ToolScope@10 name acc 84.0% on 25 colliding-GT queries vs 93.1% on 175 others; qwen2.5-7b-instruct ToolScope@10 name acc 68.0% on 25 colliding-GT queries vs 89.7% on 175 others |
 | Dotted vs underscore aliases after sanitizing | 2 groups | `car.rental` / `car_rental` → `car_rental`; `solve.quadratic_equation` / `solve_quadratic_equation` → `solve_quadratic_equation`. Dedupe keeps first-seen; original_name stays in metadata. |
 | Confusable siblings inside top-k | Most remaining `wrong_tool` | Ground truth is retrieved (recall = 1) but the model prefers a near-duplicate still in the shortlist. |
 
 ## What this supports for the paper
 
-Selection over injection is not a uniform lift. It helps the model that struggles with a 443-tool prompt (qwen3-32b, +78.0 pp name acc, ~97.7% less tool JSON) and is a wash for models that already pick the right name from the full catalog (qwen2.5-7b-instruct baseline 40.0%).
+Selection over injection is not a uniform lift. It helps the model that struggles with a 443-tool prompt (llama-3.3-70b-instruct, +38.0 pp name acc, ~97.7% less tool JSON) and is a wash for models that already pick the right name from the full catalog (qwen2.5-7b-instruct baseline 40.0%).
 
 Retrieval at k=10 is nearly solved (Recall 98.5%). The leftover selection error is sibling confusion, and the leftover calling error is arguments.
 
