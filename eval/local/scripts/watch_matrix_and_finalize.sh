@@ -31,6 +31,10 @@ _log "watcher started (poll=${POLL_SECS}s, min_models=${MIN_MODELS}, min_n=${MIN
 
 while _matrix_running; do
   _log "matrix running; checkpoints: $(_checkpoint_summary)"
+  if ! TOOLSCOPE_FINALIZE_COMMIT=1 TOOLSCOPE_FINALIZE_PUSH=1 \
+    "${SCRIPT_DIR}/finalize_local_if_needed.sh" >>"${LOG}" 2>&1; then
+    _log "warning: incremental finalize check failed"
+  fi
   sleep "${POLL_SECS}"
 done
 
@@ -42,8 +46,8 @@ if [[ -f "${MATRIX_LOG}" ]] && ! grep -q '^Done\.$' "${MATRIX_LOG}"; then
 fi
 
 cd "${REPO_ROOT}"
-export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
-if python3 eval/local/scripts/finalize_local_artifacts.py --commit --push; then
+if TOOLSCOPE_FINALIZE_COMMIT=1 TOOLSCOPE_FINALIZE_PUSH=1 \
+  "${SCRIPT_DIR}/finalize_local_if_needed.sh" >>"${LOG}" 2>&1; then
   _log "finalize complete"
 else
   _log "finalize failed (exit $?)"

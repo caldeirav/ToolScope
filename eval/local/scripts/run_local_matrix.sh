@@ -220,6 +220,14 @@ for i in "${!IDS[@]}"; do
       echo "warning: purge failed for ${MODEL_ID}" >&2
     fi
   fi
+
+  if [[ "${EVAL_OK}" == "true" && "${SKIP_EVAL}" != "true" ]]; then
+    echo "Updating local harness artifacts after ${MODEL_ID} ..."
+    if ! TOOLSCOPE_FINALIZE_COMMIT=1 TOOLSCOPE_FINALIZE_PUSH=1 \
+      "${SCRIPT_DIR}/finalize_local_if_needed.sh"; then
+      echo "warning: artifact finalize failed for ${MODEL_ID}" >&2
+    fi
+  fi
 done
 
 wait_prefetch
