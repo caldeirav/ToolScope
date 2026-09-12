@@ -24,9 +24,10 @@ model:
     - name: llama-3.1-8b-instruct
       timeout_seconds: 180
     - name: qwen3-32b
+      timeout_seconds: 600
     # Control Ceiling tier
     - name: llama-3.3-70b-instruct
-      timeout_seconds: 300
+      timeout_seconds: 900
 
 dataset:
   protocol: shared_catalog

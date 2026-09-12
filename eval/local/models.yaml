@@ -73,9 +73,11 @@ models:
     alias: qwen3-32b
     server_extra_args:
       - --jinja
-    context_size: 16384
-    healthcheck_timeout_seconds: 2400
-    timeout_seconds: 240
+      - -np
+      - 1
+    context_size: 65536
+    healthcheck_timeout_seconds: 3600
+    timeout_seconds: 600
 
   # ── Control Ceiling tier ──────────────────────────────────────────────────
   llama-3.3-70b-instruct:
@@ -84,7 +86,9 @@ models:
     file_glob: "*Q4_K_M*.gguf"
     hf_include: "*Q4_K_M*.gguf"
     alias: llama-3.3-70b-instruct
-    server_extra_args: []
-    context_size: 16384
-    healthcheck_timeout_seconds: 3600
-    timeout_seconds: 300
+    server_extra_args:
+      - -np
+      - 1
+    context_size: 131072
+    healthcheck_timeout_seconds: 7200
+    timeout_seconds: 900

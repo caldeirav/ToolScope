@@ -14,8 +14,13 @@ REPO_URL="${LLAMA_CPP_REPO:-https://github.com/ggml-org/llama.cpp.git}"
 mkdir -p "${VENDOR_ROOT}"
 
 if [[ -f "${SRC}/CMakeLists.txt" ]]; then
+  if [[ -x "${SRC}/build/bin/llama-server" ]] \
+    && grep -q "using extended context (no cap)" "${SRC}/tools/server/server.cpp" 2>/dev/null; then
+    echo "llama.cpp vendor OK @ ${TAG} (patched build present)"
+    exit 0
+  fi
   current="$(git -C "${SRC}" rev-parse HEAD 2>/dev/null || true)"
-  want="$(git ls-remote "${REPO_URL}" "refs/tags/${TAG}" | awk '{print $1}')"
+  want="$(git ls-remote "${REPO_URL}" "refs/tags/${TAG}" 2>/dev/null | awk '{print $1}')"
   if [[ -n "${want}" && "${current}" == "${want}" ]]; then
     echo "llama.cpp vendor OK @ ${TAG} (${current:0:12})"
     exit 0

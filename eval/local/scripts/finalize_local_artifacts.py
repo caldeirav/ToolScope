@@ -31,6 +31,8 @@ def _best_json(output_dir: Path, model_id: str) -> Path | None:
     best: Path | None = None
     best_n = -1
     for path in candidates:
+        if "inprogress" in path.name:
+            continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             n = int(payload.get("metrics", {}).get("n", 0))

@@ -29,12 +29,19 @@ for entry in cfg.get("model", {}).get("entries", []):
     slug = mid.split("/")[-1]
     best_n = -1
     for path in sorted(results.glob(f"bfcl_eval_{slug}_*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        if "inprogress" in path.name:
+            continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             n = int(payload.get("metrics", {}).get("n", 0))
+            insts = payload.get("instances") or []
+            api_fail = sum(
+                1 for i in insts
+                if (i.get("baseline") or {}).get("error") == "api_fail"
+            )
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
-        if n > best_n:
+        if n > best_n and api_fail == 0:
             best_n = n
     if best_n >= min_n:
         out[mid] = best_n

@@ -25,7 +25,16 @@ PORT="$(server_port)"
 "${SCRIPT_DIR}/stop_server.sh" 2>/dev/null || true
 
 if [[ "${MODE}" == "native" ]]; then
-  require_cmd llama-server
+  LLAMA_BIN="${TOOLSCOPE_LLAMA_SERVER:-}"
+  if [[ -z "${LLAMA_BIN}" ]]; then
+    VENDOR_BIN="${REPO_ROOT}/eval/local/vendor/llama.cpp/build/bin/llama-server"
+    if [[ -x "${VENDOR_BIN}" ]]; then
+      LLAMA_BIN="${VENDOR_BIN}"
+    else
+      require_cmd llama-server
+      LLAMA_BIN="$(command -v llama-server)"
+    fi
+  fi
   if [[ -f /usr/local/bin/toolscope-cuda-runtime-env.sh ]]; then
     # shellcheck source=/dev/null
     source /usr/local/bin/toolscope-cuda-runtime-env.sh
@@ -54,7 +63,8 @@ if [[ "${MODE}" == "native" ]]; then
 
   echo "Starting native llama-server (${ALIAS}) on port ${PORT}"
   echo "  GGUF: ${GGUF}"
-  nohup llama-server "${ARGS[@]}" >"${LOG}" 2>&1 &
+  echo "  ctx: ${CTX}  binary: ${LLAMA_BIN}"
+  nohup "${LLAMA_BIN}" "${ARGS[@]}" >"${LOG}" 2>&1 &
   echo $! >"${PIDFILE}"
   echo "  PID: $(cat "${PIDFILE}")"
   echo "  Log: ${LOG}"

@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /src
 COPY eval/local/vendor/llama.cpp /src
+COPY eval/local/patches/llama_server_extended_ctx.patch /tmp/llama_server_extended_ctx.patch
+RUN patch -p1 -d /src < /tmp/llama_server_extended_ctx.patch
 
 RUN cmake -B build \
     -DGGML_CUDA=ON \
@@ -48,6 +50,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv git curl ca-certificates libgomp1 \
+    cmake build-essential patch \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=llama-builder /opt/llama.cpp/bin/ /opt/llama.cpp/bin/
