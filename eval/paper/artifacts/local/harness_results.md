@@ -14,7 +14,7 @@ Protocol: `shared_catalog`. BFCL-derived; **not** an official Gorilla leaderboar
 
 ---
 
-Skipped instances: **0**. `api_fail` on at least one condition: **422** queries across the matrix.
+Skipped instances: **0**. `api_fail` on at least one condition: **168** queries across the matrix.
 
 ## Tool name accuracy (headline)
 
@@ -22,11 +22,11 @@ Share of queries where the model called a ground-truth tool name. Retrieval metr
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
-| llama-3.3-70b-instruct | 0.0% | 37.5% | 38.5% | 38.5% | 37.5% | 38.0% | 38.0% |
-| qwen3-32b | 0.0% | 76.5% | 79.5% | 79.0% | 78.0% | 78.0% | 78.0% |
 | llama-3.2-3b-instruct | 2.5% | 85.0% | 85.5% | 82.5% | 84.5% | 84.5% | 83.5% |
 | llama-3.1-8b-instruct | 6.0% | 89.0% | 91.5% | 89.5% | 90.5% | 92.0% | 92.5% |
 | qwen2.5-7b-instruct | 40.0% | 83.5% | 86.0% | 88.5% | 84.5% | 87.0% | 87.5% |
+| qwen3-32b | 72.5% | 76.5% | 79.5% | 79.0% | 78.0% | 78.0% | 78.0% |
+| llama-3.3-70b-instruct | 79.0% | 37.5% | 38.5% | 38.5% | 37.5% | 38.0% | 38.0% |
 
 Models ordered by baseline name accuracy (weakest catalog handler first).
 
@@ -36,30 +36,16 @@ Selection gain shrinks as baseline name accuracy rises. McNemar is exact two-sid
 
 | Model | Baseline name acc | BM25 Δ | ToolScope Δ | ToolScope@10 flips (win/lose) | McNemar p |
 |---|---:|---:|---:|---|---:|
-| llama-3.3-70b-instruct | 0.0% | +38.5 pp | +38.0 pp | +76 / −0 | < 0.001 |
-| qwen3-32b | 0.0% | +79.5 pp | +78.0 pp | +156 / −0 | < 0.001 |
 | llama-3.2-3b-instruct | 2.5% | +83.0 pp | +82.0 pp | +165 / −1 | < 0.001 |
 | llama-3.1-8b-instruct | 6.0% | +85.5 pp | +86.0 pp | +173 / −1 | < 0.001 |
 | qwen2.5-7b-instruct | 40.0% | +46.0 pp | +47.0 pp | +104 / −10 | < 0.001 |
+| qwen3-32b | 72.5% | +7.0 pp | +5.5 pp | +36 / −25 | 0.20 |
+| llama-3.3-70b-instruct | 79.0% | -40.5 pp | -41.0 pp | +9 / −91 | < 0.001 |
 
 ## Per-condition matrix
 
 | Model | Condition | Name acc | AST acc | Δ name | Recall@10 | NDCG@10 | Mean latency |
 |---|---|---:|---:|---:|---:|---:|---:|
-| llama-3.3-70b-instruct | Baseline | 0.0% | 0.0% | — | — | — | 926 ms |
-| llama-3.3-70b-instruct | BM25@5 | 37.5% | 26.5% | +37.5 pp | 95.0% | 0.874 | 7.4 s |
-| llama-3.3-70b-instruct | BM25@10 | 38.5% | 27.0% | +38.5 pp | 97.0% | 0.881 | 7.1 s |
-| llama-3.3-70b-instruct | BM25@20 | 38.5% | 27.0% | +38.5 pp | 99.0% | 0.886 | 8.6 s |
-| llama-3.3-70b-instruct | ToolScope@5 | 37.5% | 27.5% | +37.5 pp | 96.0% | 0.877 | 6.6 s |
-| llama-3.3-70b-instruct | ToolScope@10 | 38.0% | 27.5% | +38.0 pp | 98.5% | 0.885 | 6.9 s |
-| llama-3.3-70b-instruct | ToolScope@20 | 38.0% | 27.0% | +38.0 pp | 99.5% | 0.888 | 8.5 s |
-| qwen3-32b | Baseline | 0.0% | 0.0% | — | — | — | 357 ms |
-| qwen3-32b | BM25@5 | 76.5% | 47.5% | +76.5 pp | 95.0% | 0.874 | 62.4 s |
-| qwen3-32b | BM25@10 | 79.5% | 50.0% | +79.5 pp | 97.0% | 0.881 | 68.0 s |
-| qwen3-32b | BM25@20 | 79.0% | 52.0% | +79.0 pp | 99.0% | 0.886 | 108.2 s |
-| qwen3-32b | ToolScope@5 | 78.0% | 49.5% | +78.0 pp | 96.0% | 0.877 | 58.6 s |
-| qwen3-32b | ToolScope@10 | 78.0% | 49.0% | +78.0 pp | 98.5% | 0.885 | 64.1 s |
-| qwen3-32b | ToolScope@20 | 78.0% | 48.5% | +78.0 pp | 99.5% | 0.888 | 107.9 s |
 | llama-3.2-3b-instruct | Baseline | 2.5% | 2.0% | — | — | — | 28.0 s |
 | llama-3.2-3b-instruct | BM25@5 | 85.0% | 47.5% | +82.5 pp | 95.0% | 0.874 | 1.8 s |
 | llama-3.2-3b-instruct | BM25@10 | 85.5% | 47.0% | +83.0 pp | 97.0% | 0.881 | 2.7 s |
@@ -81,6 +67,20 @@ Selection gain shrinks as baseline name accuracy rises. McNemar is exact two-sid
 | qwen2.5-7b-instruct | ToolScope@5 | 84.5% | 51.5% | +44.5 pp | 96.0% | 0.877 | 1.7 s |
 | qwen2.5-7b-instruct | ToolScope@10 | 87.0% | 53.5% | +47.0 pp | 98.5% | 0.885 | 1.8 s |
 | qwen2.5-7b-instruct | ToolScope@20 | 87.5% | 56.0% | +47.5 pp | 99.5% | 0.888 | 2.2 s |
+| qwen3-32b | Baseline | 72.5% | 45.0% | — | — | — | 75.2 s |
+| qwen3-32b | BM25@5 | 76.5% | 47.5% | +4.0 pp | 95.0% | 0.874 | 62.4 s |
+| qwen3-32b | BM25@10 | 79.5% | 50.0% | +7.0 pp | 97.0% | 0.881 | 68.0 s |
+| qwen3-32b | BM25@20 | 79.0% | 52.0% | +6.5 pp | 99.0% | 0.886 | 108.2 s |
+| qwen3-32b | ToolScope@5 | 78.0% | 49.5% | +5.5 pp | 96.0% | 0.877 | 58.6 s |
+| qwen3-32b | ToolScope@10 | 78.0% | 49.0% | +5.5 pp | 98.5% | 0.885 | 64.1 s |
+| qwen3-32b | ToolScope@20 | 78.0% | 48.5% | +5.5 pp | 99.5% | 0.888 | 107.9 s |
+| llama-3.3-70b-instruct | Baseline | 79.0% | 46.5% | — | — | — | 16.5 s |
+| llama-3.3-70b-instruct | BM25@5 | 37.5% | 26.5% | -41.5 pp | 95.0% | 0.874 | 7.4 s |
+| llama-3.3-70b-instruct | BM25@10 | 38.5% | 27.0% | -40.5 pp | 97.0% | 0.881 | 7.1 s |
+| llama-3.3-70b-instruct | BM25@20 | 38.5% | 27.0% | -40.5 pp | 99.0% | 0.886 | 8.6 s |
+| llama-3.3-70b-instruct | ToolScope@5 | 37.5% | 27.5% | -41.5 pp | 96.0% | 0.877 | 6.6 s |
+| llama-3.3-70b-instruct | ToolScope@10 | 38.0% | 27.5% | -41.0 pp | 98.5% | 0.885 | 6.9 s |
+| llama-3.3-70b-instruct | ToolScope@20 | 38.0% | 27.0% | -41.0 pp | 99.5% | 0.888 | 8.5 s |
 
 Prompt tokens: baseline ~60,051 vs BM25@5 ~699, BM25@10 ~1,401, BM25@20 ~2,789, ToolScope@5 ~683, ToolScope@10 ~1,362, ToolScope@20 ~2,700 (~97.7% compression). Latency is one-turn `bind_tools` only; tools are never executed.
 
@@ -90,21 +90,21 @@ Name selection does not close the AST gap. Leftover error after a correct name i
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
-| llama-3.3-70b-instruct | 0.0% | 26.5% | 27.0% | 27.0% | 27.5% | 27.5% | 27.0% |
-| qwen3-32b | 0.0% | 47.5% | 50.0% | 52.0% | 49.5% | 49.0% | 48.5% |
 | llama-3.2-3b-instruct | 2.0% | 47.5% | 47.0% | 44.5% | 47.5% | 46.5% | 44.0% |
 | llama-3.1-8b-instruct | 3.5% | 49.5% | 50.5% | 49.0% | 49.0% | 52.0% | 52.0% |
 | qwen2.5-7b-instruct | 23.5% | 52.0% | 53.5% | 55.0% | 51.5% | 53.5% | 56.0% |
+| qwen3-32b | 45.0% | 47.5% | 50.0% | 52.0% | 49.5% | 49.0% | 48.5% |
+| llama-3.3-70b-instruct | 46.5% | 26.5% | 27.0% | 27.0% | 27.5% | 27.5% | 27.0% |
 
 ## AST given correct name
 
 | Model | Baseline | BM25@5 | BM25@10 | BM25@20 | ToolScope@5 | ToolScope@10 | ToolScope@20 |
 |---|---|---|---|---|---|---|---|
-| llama-3.3-70b-instruct | — | 70.7% | 70.1% | 70.1% | 73.3% | 72.4% | 71.1% |
-| qwen3-32b | — | 62.1% | 62.9% | 65.8% | 63.5% | 62.8% | 62.2% |
 | llama-3.2-3b-instruct | 80.0% | 55.9% | 55.0% | 53.9% | 56.2% | 55.0% | 52.7% |
 | llama-3.1-8b-instruct | 58.3% | 55.6% | 55.2% | 54.7% | 54.1% | 56.5% | 56.2% |
 | qwen2.5-7b-instruct | 58.8% | 62.3% | 62.2% | 62.1% | 60.9% | 61.5% | 64.0% |
+| qwen3-32b | 62.1% | 62.1% | 62.9% | 65.8% | 63.5% | 62.8% | 62.2% |
+| llama-3.3-70b-instruct | 58.9% | 70.7% | 70.1% | 70.1% | 73.3% | 72.4% | 71.1% |
 
 Once the name is right, ~20–47% of calls still fail AST (`bad_args`). Retrieval does not fix argument quality.
 
@@ -114,20 +114,6 @@ Counts. Fully correct (name + AST) is listed first; the rest are the error taxon
 
 | Model | Condition | Fully correct | bad_args | wrong_tool | parse_fail | no_call | retrieval_miss | api_fail |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| llama-3.3-70b-instruct | Baseline | 0 | 0 | 0 | 0 | 0 | 0 | 200 |
-| llama-3.3-70b-instruct | BM25@5 | 53 | 22 | 4 | 1 | 0 | 3 | 117 |
-| llama-3.3-70b-instruct | BM25@10 | 54 | 23 | 3 | 1 | 0 | 2 | 117 |
-| llama-3.3-70b-instruct | BM25@20 | 54 | 23 | 4 | 0 | 0 | 2 | 117 |
-| llama-3.3-70b-instruct | ToolScope@5 | 55 | 20 | 6 | 0 | 0 | 1 | 118 |
-| llama-3.3-70b-instruct | ToolScope@10 | 55 | 21 | 6 | 0 | 0 | 0 | 118 |
-| llama-3.3-70b-instruct | ToolScope@20 | 54 | 22 | 6 | 0 | 0 | 0 | 118 |
-| qwen3-32b | Baseline | 0 | 0 | 0 | 0 | 0 | 0 | 200 |
-| qwen3-32b | BM25@5 | 95 | 58 | 15 | 5 | 0 | 7 | 20 |
-| qwen3-32b | BM25@10 | 100 | 59 | 12 | 4 | 0 | 4 | 21 |
-| qwen3-32b | BM25@20 | 104 | 54 | 16 | 5 | 0 | 0 | 21 |
-| qwen3-32b | ToolScope@5 | 99 | 57 | 14 | 4 | 0 | 5 | 21 |
-| qwen3-32b | ToolScope@10 | 98 | 58 | 17 | 3 | 0 | 2 | 22 |
-| qwen3-32b | ToolScope@20 | 97 | 59 | 16 | 2 | 0 | 0 | 26 |
 | llama-3.2-3b-instruct | Baseline | 4 | 1 | 11 | 183 | 0 | 0 | 1 |
 | llama-3.2-3b-instruct | BM25@5 | 95 | 75 | 14 | 0 | 0 | 10 | 6 |
 | llama-3.2-3b-instruct | BM25@10 | 94 | 77 | 12 | 0 | 0 | 6 | 11 |
@@ -149,32 +135,24 @@ Counts. Fully correct (name + AST) is listed first; the rest are the error taxon
 | qwen2.5-7b-instruct | ToolScope@5 | 103 | 66 | 22 | 2 | 0 | 7 | 0 |
 | qwen2.5-7b-instruct | ToolScope@10 | 107 | 67 | 23 | 0 | 0 | 3 | 0 |
 | qwen2.5-7b-instruct | ToolScope@20 | 112 | 63 | 24 | 1 | 0 | 0 | 0 |
+| qwen3-32b | Baseline | 90 | 55 | 52 | 2 | 0 | 0 | 1 |
+| qwen3-32b | BM25@5 | 95 | 58 | 15 | 5 | 0 | 7 | 20 |
+| qwen3-32b | BM25@10 | 100 | 59 | 12 | 4 | 0 | 4 | 21 |
+| qwen3-32b | BM25@20 | 104 | 54 | 16 | 5 | 0 | 0 | 21 |
+| qwen3-32b | ToolScope@5 | 99 | 57 | 14 | 4 | 0 | 5 | 21 |
+| qwen3-32b | ToolScope@10 | 98 | 58 | 17 | 3 | 0 | 2 | 22 |
+| qwen3-32b | ToolScope@20 | 97 | 59 | 16 | 2 | 0 | 0 | 26 |
+| llama-3.3-70b-instruct | Baseline | 93 | 65 | 40 | 2 | 0 | 0 | 0 |
+| llama-3.3-70b-instruct | BM25@5 | 53 | 22 | 4 | 1 | 0 | 3 | 117 |
+| llama-3.3-70b-instruct | BM25@10 | 54 | 23 | 3 | 1 | 0 | 2 | 117 |
+| llama-3.3-70b-instruct | BM25@20 | 54 | 23 | 4 | 0 | 0 | 2 | 117 |
+| llama-3.3-70b-instruct | ToolScope@5 | 55 | 20 | 6 | 0 | 0 | 1 | 118 |
+| llama-3.3-70b-instruct | ToolScope@10 | 55 | 21 | 6 | 0 | 0 | 0 | 118 |
+| llama-3.3-70b-instruct | ToolScope@20 | 54 | 22 | 6 | 0 | 0 | 0 | 118 |
 
-qwen3-32b's ToolScope@10 name-acc gain is almost entirely fewer `wrong_tool` (0 → 17), not better arguments.
+qwen2.5-7b-instruct's ToolScope@10 name-acc gain is almost entirely fewer `wrong_tool` (110 → 23), not better arguments.
 
 ## ToolScope@10 vs baseline name-acc flips
-
-### llama-3.3-70b-instruct
-
-Name acc 0.0% → 38.0% (+38.0 pp). Flips +76 / −0, McNemar p = < 0.001.
-
-Wins (baseline wrong, retriever right):
-- `multiple_66` GT `traffic_estimate`: baseline `—` → ToolScope@10 `traffic_estimate` (recall=1). How much traffic should I expect from Las Vegas to Los Angeles this weekend?
-- `multiple_187` GT `whole_foods.check_price`: baseline `—` → ToolScope@10 `whole_foods.check_price` (recall=1). Check the price of tomatoes and lettuce at the Whole Foods in Los Angeles.
-- `multiple_101` GT `math.gcd`: baseline `—` → ToolScope@10 `math.gcd` (recall=1). Find the greatest common divisor (GCD) of 12 and 18
-- `multiple_193` GT `maps.get_distance_duration`: baseline `—` → ToolScope@10 `maps.get_distance_duration` (recall=1). Get me the travel distance and duration from the Eiffel Tower to the Louvre Museum
-- `multiple_111` GT `calculate_genotype_frequency`: baseline `—` → ToolScope@10 `calculate_genotype_frequency` (recall=1). What is the genotype frequency of AA genotype in a population, given that allele freque...
-
-### qwen3-32b
-
-Name acc 0.0% → 78.0% (+78.0 pp). Flips +156 / −0, McNemar p = < 0.001.
-
-Wins (baseline wrong, retriever right):
-- `multiple_66` GT `traffic_estimate`: baseline `—` → ToolScope@10 `traffic_estimate` (recall=1). How much traffic should I expect from Las Vegas to Los Angeles this weekend?
-- `multiple_187` GT `whole_foods.check_price`: baseline `—` → ToolScope@10 `whole_foods.check_price` (recall=1). Check the price of tomatoes and lettuce at the Whole Foods in Los Angeles.
-- `multiple_101` GT `math.gcd`: baseline `—` → ToolScope@10 `math.gcd` (recall=1). Find the greatest common divisor (GCD) of 12 and 18
-- `multiple_193` GT `maps.get_distance_duration`: baseline `—` → ToolScope@10 `maps.get_distance_duration` (recall=1). Get me the travel distance and duration from the Eiffel Tower to the Louvre Museum
-- `multiple_111` GT `calculate_genotype_frequency`: baseline `—` → ToolScope@10 `calculate_genotype_frequency` (recall=1). What is the genotype frequency of AA genotype in a population, given that allele freque...
 
 ### llama-3.2-3b-instruct
 
@@ -226,6 +204,46 @@ Losses (baseline right, retriever wrong):
 
 9 of 10 losses still have recall = 1: the ground-truth tool was bound and the model preferred a sibling still inside the shortlist.
 
+### qwen3-32b
+
+Name acc 72.5% → 78.0% (+5.5 pp). Flips +36 / −25, McNemar p = 0.20.
+
+Wins (baseline wrong, retriever right):
+- `multiple_101` GT `math.gcd`: baseline `calculate_gcd` → ToolScope@10 `math.gcd` (recall=1). Find the greatest common divisor (GCD) of 12 and 18
+- `multiple_13` GT `corporate_finance.revenue_forecast`: baseline `corporate_finance.product_price` → ToolScope@10 `corporate_finance.revenue_forecast` (recall=1). How much revenue would company XYZ generate if we increase the sales units of product A...
+- `multiple_170` GT `soccer_stat.get_player_stats`: baseline `player_statistic` → ToolScope@10 `soccer_stat.get_player_stats` (recall=1). Get the player stats of Cristiano Ronaldo in the 2019-2020 season
+- `multiple_158` GT `religious_history.get_papal_biography`: baseline `religion.history_info` → ToolScope@10 `religious_history.get_papal_biography` (recall=1). Get the biography and main contributions of Pope Innocent III.
+- `multiple_167` GT `music_generator.generate_melody`: baseline `music_generator.generate_scale_progression` → ToolScope@10 `music_generator.generate_melody` (recall=1). Generate a melody in C major scale, starting with the note C4, 16 measures long, at 120...
+
+Losses (baseline right, retriever wrong):
+- `multiple_76` GT `sculpture.create_custom`: baseline `sculpture.create_custom` → ToolScope@10 `—` (recall=1). I want to order a custom bronze sculpture of a horse. What material options are available?
+- `multiple_78` GT `museum_info`: baseline `museum_info` → ToolScope@10 `museum_working_hours.get` (recall=1). Get me information about Natural History Museum in London including timings, exhibition...
+- `multiple_99` GT `calculus.derivative`: baseline `calculus.derivative` → ToolScope@10 `calculate_derivative` (recall=1). Calculate the derivative of the function 2x^2 at x = 1.
+- `multiple_124` GT `probabilities.calculate_single`: baseline `probabilities.calculate_single` → ToolScope@10 `card_game_probability.calculate` (recall=0). What's the probability of drawing a king from a well shuffled standard deck of 52 cards?
+- `multiple_138` GT `legal_case.fetch`: baseline `legal_case.fetch` → ToolScope@10 `law_case_search.find_historical` (recall=1). How to obtain the detailed case information of the R vs Adams legal case?
+
+24 of 25 losses still have recall = 1: the ground-truth tool was bound and the model preferred a sibling still inside the shortlist.
+
+### llama-3.3-70b-instruct
+
+Name acc 79.0% → 38.0% (-41.0 pp). Flips +9 / −91, McNemar p = < 0.001.
+
+Wins (baseline wrong, retriever right):
+- `multiple_126` GT `t_test`: baseline `—` → ToolScope@10 `t_test` (recall=1). Find the statistical significance between two set of variables, dataset_A with the valu...
+- `multiple_36` GT `kinematics.calculate_speed_from_rest`: baseline `kinematics.calculate_final_speed` → ToolScope@10 `kinematics.calculate_speed_from_rest` (recall=1). Find out how fast an object was going if it started from rest and traveled a distance o...
+- `multiple_153` GT `get_event_date`: baseline `—` → ToolScope@10 `get_event_date` (recall=1). When was the signing of the Treaty of Lisbon?
+- `multiple_52` GT `currency_conversion`: baseline `currency_conversion.convert` → ToolScope@10 `currency_conversion` (recall=1). I have 100 euro. How much is it in USD?
+- `multiple_73` GT `religion.get_origin`: baseline `religion_origin_get` → ToolScope@10 `religion.get_origin` (recall=1). Who was the founder of Buddhism and where was it originated?
+
+Losses (baseline right, retriever wrong):
+- `multiple_192` GT `currency_conversion.convert`: baseline `currency_conversion.convert` → ToolScope@10 `currency_conversion` (recall=1). Convert 150 Euros to Canadian dollars.
+- `multiple_109` GT `cellbio.get_proteins`: baseline `cellbio.get_proteins` → ToolScope@10 `—` (recall=1). What are the names of proteins found in the plasma membrane?
+- `multiple_133` GT `calculate_mutual_fund_balance`: baseline `calculate_mutual_fund_balance` → ToolScope@10 `—` (recall=1). Calculate the balance of a mutual fund given a total investment of $50000 with a 5% ann...
+- `multiple_142` GT `weather.humidity_forecast`: baseline `weather.humidity_forecast` → ToolScope@10 `—` (recall=1). What is the humidity level in Miami, Florida in the upcoming 7 days?
+- `multiple_33` GT `calculate_integral`: baseline `calculate_integral` → ToolScope@10 `—` (recall=1). Find the integral of the function f(x) = 3x^2 from 1 to 2.
+
+91 of 91 losses still have recall = 1: the ground-truth tool was bound and the model preferred a sibling still inside the shortlist.
+
 ## Retrieval quality (model-independent)
 
 | Retriever | Recall@10 | NDCG@10 | Missed queries | Mean tokens |
@@ -237,20 +255,20 @@ Losses (baseline right, retriever wrong):
 | ToolScope@10 | 98.5% | 0.885 | 3 / 200 | 1,362 |
 | ToolScope@20 | 99.5% | 0.888 | 1 / 200 | 2,700 |
 
-When ToolScope@10 recall is 1, name acc is 38.6% on the first model's traces. When recall is 0, name acc is 0% — the agent cannot call a tool that is not bound.
+When ToolScope@10 recall is 1, name acc is 85.8% on the first model's traces. When recall is 0, name acc is 0% — the agent cannot call a tool that is not bound.
 Missed ground-truth names: `linear_regression`, `probabilities.calculate_single`, `route_planner.calculate_route`.
 
 ## Catalog hazards
 
 | Hazard | Count | Effect on scores |
 |---|---:|---|
-| Same name, different schema (first-seen kept) | 42 records / 33 names | llama-3.3-70b-instruct ToolScope@10 name acc 32.0% on 25 colliding-GT queries vs 38.9% on 175 others; qwen3-32b ToolScope@10 name acc 72.0% on 25 colliding-GT queries vs 78.9% on 175 others; llama-3.2-3b-instruct ToolScope@10 name acc 80.0% on 25 colliding-GT queries vs 85.1% on 175 others; llama-3.1-8b-instruct ToolScope@10 name acc 84.0% on 25 colliding-GT queries vs 93.1% on 175 others; qwen2.5-7b-instruct ToolScope@10 name acc 68.0% on 25 colliding-GT queries vs 89.7% on 175 others |
+| Same name, different schema (first-seen kept) | 42 records / 33 names | llama-3.2-3b-instruct ToolScope@10 name acc 80.0% on 25 colliding-GT queries vs 85.1% on 175 others; llama-3.1-8b-instruct ToolScope@10 name acc 84.0% on 25 colliding-GT queries vs 93.1% on 175 others; qwen2.5-7b-instruct ToolScope@10 name acc 68.0% on 25 colliding-GT queries vs 89.7% on 175 others; qwen3-32b ToolScope@10 name acc 72.0% on 25 colliding-GT queries vs 78.9% on 175 others; llama-3.3-70b-instruct ToolScope@10 name acc 32.0% on 25 colliding-GT queries vs 38.9% on 175 others |
 | Dotted vs underscore aliases after sanitizing | 2 groups | `car.rental` / `car_rental` → `car_rental`; `solve.quadratic_equation` / `solve_quadratic_equation` → `solve_quadratic_equation`. Dedupe keeps first-seen; original_name stays in metadata. |
 | Confusable siblings inside top-k | Most remaining `wrong_tool` | Ground truth is retrieved (recall = 1) but the model prefers a near-duplicate still in the shortlist. |
 
 ## What this supports for the paper
 
-Selection over injection is not a uniform lift. It helps the model that struggles with a 443-tool prompt (llama-3.3-70b-instruct, +38.0 pp name acc, ~97.7% less tool JSON) and is a wash for models that already pick the right name from the full catalog (qwen2.5-7b-instruct baseline 40.0%).
+Selection over injection is not a uniform lift. It helps the model that struggles with a 443-tool prompt (llama-3.2-3b-instruct, +82.0 pp name acc, ~97.7% less tool JSON) and is a wash for models that already pick the right name from the full catalog (llama-3.3-70b-instruct baseline 79.0%).
 
 Retrieval at k=10 is nearly solved (Recall 98.5%). The leftover selection error is sibling confusion, and the leftover calling error is arguments.
 
