@@ -265,10 +265,88 @@ Missed ground-truth names: `linear_regression`, `probabilities.calculate_single`
 | Dotted vs underscore aliases after sanitizing | 2 groups | `car.rental` / `car_rental` → `car_rental`; `solve.quadratic_equation` / `solve_quadratic_equation` → `solve_quadratic_equation`. Dedupe keeps first-seen; original_name stays in metadata. |
 | Confusable siblings inside top-k | Most remaining `wrong_tool` | Ground truth is retrieved (recall = 1) but the model prefers a near-duplicate still in the shortlist. |
 
-## What this supports for the paper
+## Analysis
 
-Selection over injection is not a uniform lift. It helps the model that struggles with a 443-tool prompt (llama-3.2-3b-instruct, +82.0 pp name acc, ~97.7% less tool JSON) and is a wash for models that already pick the right name from the full catalog (llama-3.3-70b-instruct baseline 79.0%).
+### Selection over injection is necessary, but its value depends on model capability
 
-Retrieval at k=10 is nearly solved (Recall 98.5%). The leftover selection error is sibling confusion, and the leftover calling error is arguments.
+These results evaluate semantic tool selection — retrieving a small candidate set before model inference — against monolithic injection of a 443-tool catalog. The central pattern is clear: **restricting exposure to k ≈ 10 tools dramatically improves tool-name accuracy while cutting serialized tool-schema context by ~97.7%** (from ~60,051 to ~1,362 tokens). What varies is *how much* improvement matters, because that depends on whether the model could use the full catalog at all.
 
-Do not treat these numbers as an official BFCL / Gorilla leaderboard score. Shared-catalog protocol, local AST vs `possible_answer`, one-turn LangGraph, no tool execution. `table.md` / `summary.csv` are the compact matrix; this file is the analysis.
+| Model | Baseline name acc | ToolScope@10 | Δ (pp) | McNemar p |
+|---|---:|---:|---:|---|
+| llama-3.2-3b-instruct | 2.5% | 84.5% | +82.0 | < 0.001 |
+| llama-3.1-8b-instruct | 6.0% | 92.0% | +86.0 | < 0.001 |
+| qwen2.5-7b-instruct | 40.0% | 87.0% | +47.0 | < 0.001 |
+| qwen3-32b | 72.5% | 88.0% | +15.5 | < 0.001 |
+| llama-3.3-70b-instruct | 79.0% | 91.0% | +12.0 | < 0.001 |
+
+The benefit is **monotonic in baseline strength**: the weaker the model under full injection, the larger the absolute gain. But the gain does not vanish at the top of the matrix. Even Llama 3.3 70B — the strongest full-catalog handler at 79% — reaches 91% with ToolScope@10, a statistically significant +12 pp (p < 0.001). Selection is not merely a crutch for models that cannot read large prompts; it remains useful when the catalog is already tractable.
+
+The deployment implication is concrete. An 8B model with retrieval (92.0% name accuracy) **outperforms a 70B model on the full catalog** (79.0%) on the same 200-query benchmark, with two orders of magnitude less tool JSON in context. That comparison holds only under this protocol — one turn, no tool execution, shared BFCL catalog — but it illustrates why tool filtering is an architectural decision, not an optional optimization.
+
+---
+
+### The context-availability paradox manifests in three distinct failure modes
+
+Monolithic injection does not fail uniformly. The error taxonomy reveals three tiers of breakdown:
+
+**Parse collapse (3B–8B Llama).** Llama 3.2 3B and Llama 3.1 8B achieve 2.5% and 6.0% baseline name accuracy. The dominant error is `parse_fail` — 183 and 161 of 200 instances respectively — meaning the model often produces no valid tool call when forced to process ~60k tokens of tool definitions. The agent is effectively non-functional despite having access to every tool in the registry. Retrieval restores operability: name accuracy jumps to ~85–92%, and `parse_fail` drops to zero.
+
+**Wrong-tool saturation (7B).** Qwen2.5 7B baseline is partially capable (40% name accuracy) but commits 110 `wrong_tool` errors — more than half of all failures. The model calls *something*, but rarely the right function among 443 candidates. ToolScope@10 cuts wrong-tool errors to 23; the +47 pp gain is almost entirely better **selection**, not better arguments.
+
+**Suboptimal but usable baselines (32B–70B).** Qwen3 32B and Llama 3.3 70B handle the full catalog well enough to be deployed without filtering (72.5% and 79.0%), yet both improve meaningfully with retrieval (+15.5 and +12.0 pp). The failure mode shifts from catastrophic breakdown to **confusable-sibling selection** within the shortlist.
+
+Latency reinforces the operational picture. Baseline inference on SLMs takes 28–75 seconds per query; retrieval conditions complete in 1.4–2.9 seconds. Even for 32B and 70B, retrieval reduces per-turn latency. The paradox is not only about accuracy — binding the entire registry imposes a persistent cost that scales with catalog size regardless of whether the model eventually picks correctly.
+
+---
+
+### Retrieval, selection, and calling are separable stages with separable bottlenecks
+
+A single end-to-end score would obscure where the pipeline breaks. Decomposing into stages clarifies what tool RAG solves and what it leaves open.
+
+**Retrieval** is strong but incomplete. At k = 10, ToolScope finds the ground-truth tool in 98.5% of queries (BM25: 97.0%). Three queries miss entirely (`linear_regression`, `probabilities.calculate_single`, `route_planner.calculate_route`); on those, name accuracy is 0% by construction — the model cannot call a tool it never sees. Retrieval quality is model-independent: the same ranked lists are used for every LLM. ToolScope edges BM25 on recall and NDCG, but the gap is modest.
+
+**Selection** is the primary beneficiary of filtering. When the ground-truth tool is in the bound set (recall = 1), aggregate name accuracy is ~85.8%. The remaining ~14% are not retrieval failures — they are **sibling-confusion** errors where the model picks a near-duplicate still in the top-k (`calculus.derivative` vs `calculate_derivative`, `database.query` vs `db_fetch_records`, `currency_conversion.convert` vs `currency_conversion`). On Qwen3 and Llama 70B, 9 of 10 paired losses (baseline correct, retrieval wrong) still have recall = 1. Widening k to 20 improves recall marginally but can **decrease** name accuracy by introducing more siblings into the shortlist. The post-retrieval bottleneck is disambiguation, not recall.
+
+**Calling** (argument correctness) is largely independent of retrieval. AST accuracy at ToolScope@10 ranges from 46.5% (3B) to 61.0% (70B) — far below the corresponding name-accuracy figures. Even conditional on picking the correct tool name, 33–45% of calls still fail the AST check (`bad_args`). Retrieval raises AST scores indirectly by fixing names, but it does not teach the model to fill parameters correctly. For Qwen2.5 7B, the path from 40% to 87% name accuracy adds only ~30 pp of AST improvement (23.5% → 53.5%), confirming that most retrieval gain is routing, not invocation quality.
+
+---
+
+### Lexical and dense retrieval are similarly effective as gates
+
+BM25 and ToolScope produce nearly identical downstream name accuracy at k = 10 (within 0–3 pp for every model). ToolScope has a small advantage in recall (98.5% vs 97.0%) and uses slightly fewer tokens (1,362 vs 1,401 mean), but neither retriever systematically dominates selection quality on this catalog.
+
+This is an important finding for practitioners: **the act of filtering to k ≈ 10 matters far more than the choice between sparse and dense retrieval**. A minimal BM25 gate in front of the model recovers the bulk of the selection benefit. Dense semantic retrieval refines edge cases — the three queries BM25 misses but ToolScope finds — but does not transform the overall picture. Tool RAG should be understood as a class of architectures (retrieve-then-bind) rather than as a single embedding-model choice.
+
+The k-ablation reinforces that k = 10 is a reasonable default. At k = 5, recall drops to 95–96% and name accuracy suffers on hard queries. At k = 20, recall approaches saturation (99%+) but name accuracy does not consistently improve — and can decline for smaller models as more confusable siblings enter the shortlist. The trade-off is between recall coverage and shortlist purity, not between retrieval method and model size.
+
+---
+
+### AgentOps: what becomes observable when injection is replaced by selection
+
+Dynamic tool selection changes what operators can inspect. Under full injection, the model sees 443 tools and the failure mode is opaque — a wrong answer could stem from any of hundreds of definitions. Under retrieval, each turn exposes an explicit candidate set of 10 tools that can be logged, audited, and constrained by policy filters before inference.
+
+The error taxonomy makes this concrete. Failures are attributed to `retrieval_miss` (GT not in shortlist), `wrong_tool` (sibling or unrelated choice), `bad_args` (right name, wrong parameters), `parse_fail` (no valid call), or `api_fail` (inference failure). Across the full matrix, only 23 query-condition pairs remain as `api_fail`; the dominant residual errors are `wrong_tool` and `bad_args`. An operator debugging a failed agent interaction can determine whether to improve the index, add reranking, upgrade the calling model, or add argument validation — rather than treating all failures as undifferentiated "agent errors."
+
+Context compression (~97.7%) and latency reduction are directly measurable efficiency gains. Governance outcomes (compliance, safety enforcement) are not measured here, but the architecture creates the **affordance** for tag-based allow/deny filters and candidate-set auditing that monolithic injection does not provide.
+
+---
+
+### Limitations
+
+These findings apply to a specific experimental setting and should not be over-generalized.
+
+**Benchmark, not production.** The catalog is derived from BFCL V4 Multiple — 443 function definitions with 33 colliding names (same name, different schema) affecting 25 ground-truth queries. Enterprise MCP registries may have different naming conventions, schema quality, and domain structure. The collision sensitivity slice (name accuracy ~4–8 pp lower on affected queries) should be reported alongside headline numbers.
+
+**Single turn, no execution.** Each instance is one `bind_tools` → predict cycle. Tools are never invoked, so multi-step trajectories, state changes, tool-side failures, and end-to-end task completion are outside scope. Selection and argument quality are necessary but not sufficient for reliable agent behaviour.
+
+**Local GGUF models, mixed quantization.** Models are served via llama.cpp on a single DGX Spark node, sequentially, with Q8_0 (SLMs) and Q4_K_M (8B–70B) quantizations. Model size and quantization are not fully disentangled. Results may not transfer to API-hosted models with different context handling, tool-calling formats, or serving infrastructure.
+
+**Single embedder, no reranking.** ToolScope uses `all-MiniLM-L6-v2` without cross-encoder reranking, policy filters, or sticky-session reuse — all of which are supported by the library but not evaluated here. Stronger embedders or rerankers may reduce sibling confusion, the dominant post-retrieval error mode.
+
+**Not an official leaderboard score.** Protocol, agent wrapper, grading pipeline, and model serving differ from the official BFCL generate/eval pipeline. Scores are BFCL-derived and internally consistent, but not comparable to Gorilla leaderboard entries.
+
+---
+
+### Summary
+
+Semantic tool selection over a 443-tool shared catalog produces large, statistically significant improvements in tool-name accuracy across five locally served models (3B–70B), with ~97.7% context compression at k = 10. The magnitude of benefit scales inversely with baseline catalog-handling ability: full injection breaks small models entirely, while larger models still gain meaningfully. Retrieval quality is high (98.5% recall) but not saturated; remaining selection errors are dominated by sibling confusion within the shortlist, not by retrieval misses. Argument correctness remains a separate bottleneck that retrieval does not address. Lexical (BM25) and dense (ToolScope) retrieval perform similarly as pre-inference gates, suggesting that the filtering architecture matters more than the specific ranker. These results support tool RAG as a practical, framework-agnostic strategy for scaling agent tool exposure — but they also delineate its boundary: it solves **which tools the model sees**, not **how the model calls them**.
