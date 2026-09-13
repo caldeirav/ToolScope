@@ -24,7 +24,7 @@ Serve five GGUF models via llama.cpp on DGX Spark and run the shared-catalog pap
 eval/local/scripts/run_local_matrix.sh
 ```
 
-Models: Llama 3.2 3B + Qwen2.5 7B (SLM), Llama 3.1 8B + Qwen3 32B (mid), Llama 3.3 70B (ceiling). Frozen results land in [`eval/paper/artifacts/local/`](paper/artifacts/local/). See [`eval/local/README.md`](local/README.md) for prerequisites, troubleshooting, and single-model runs.
+Models: Llama 3.2 3B + Qwen2.5 7B (SLM), Llama 3.1 8B + Qwen3 32B (mid), Llama 3.3 70B (ceiling). Frozen v1.0 results: [`eval/paper/artifacts/`](paper/artifacts/). See [`eval/local/README.md`](local/README.md) for prerequisites, troubleshooting, and single-model runs.
 
 ---
 
@@ -88,10 +88,10 @@ python eval/run_eval.py \
 
 Or set `OPENAI_BASE_URL` / `OPENAI_API_KEY` in `.env` and omit `--base-url` / `--api-key`.
 
-**LangGraph** — `backend: langchain`. Used by the paper protocol. `ChatOpenAI` for OpenAI-compatible `/v1` endpoints; `ChatGoogleGenerativeAI` when `provider: google`. See [`eval/paper/README.md`](paper/README.md).
+**LangGraph** — `backend: langchain`. Used by the paper protocol (`eval/paper/bfcl_multiple.yaml`). `ChatOpenAI` against an OpenAI-compatible `/v1` endpoint (llama.cpp for local GGUF). See [`eval/paper/README.md`](paper/README.md).
 
 ```bash
-python eval/run_eval.py --config eval/paper/bfcl_multiple_hc.yaml --dry-run --samples 20
+python eval/run_eval.py --config eval/paper/bfcl_multiple.yaml --dry-run --samples 20
 ```
 
 ---
@@ -169,7 +169,7 @@ Under `eval/results/` (or `eval/results/paper/` for the paper YAML):
 
 - `bfcl_eval_{model}_{timestamp}.json` — config, aggregates, per-instance traces
 - `checkpoints/` — JSONL resume files (protocol and catalog size are part of the key, so a smoke run cannot resume into a full run)
-- Paper YAML also writes `summary.csv`, `table.md`, `harness_results.md`, and `tool_name_collisions.json`. A full (non-dry, unsampled) run copies the first three into [`eval/paper/artifacts/`](paper/artifacts/).
+- Paper YAML (`eval/paper/bfcl_multiple.yaml`) also writes `summary.csv`, `table.md`, `harness_results.md`, and `tool_name_collisions.json`. A full (non-dry, unsampled) run copies the first three into [`eval/paper/artifacts/`](paper/artifacts/) as the v1.0 snapshot.
 
 ---
 

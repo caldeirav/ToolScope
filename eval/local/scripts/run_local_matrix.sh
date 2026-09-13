@@ -115,7 +115,7 @@ if [[ "${SKIP_BUILD}" != "true" ]] && [[ "$(inference_mode)" == "container" ]]; 
   fi
 fi
 
-EVAL_ARGS=(--config "${LOCAL_DIR}/bfcl_multiple_local.yaml")
+EVAL_ARGS=(--config "${REPO_ROOT}/eval/paper/bfcl_multiple.yaml")
 if [[ -n "${SAMPLES}" ]]; then
   EVAL_ARGS+=(--samples "${SAMPLES}")
 fi
@@ -235,4 +235,4 @@ wait_prefetch
 echo ""
 echo "Done."
 echo "  Runtime results: ${REPO_ROOT}/eval/results/paper/local/"
-echo "  Frozen artifacts: ${REPO_ROOT}/eval/paper/artifacts/local/"
+echo "  Frozen artifacts: ${REPO_ROOT}/eval/paper/artifacts/"

@@ -301,13 +301,13 @@ examples/fastmcp/
 
 The `eval/` tree is a BFCL-based harness for **tool selection**, not a second product.
 
-It answers: does giving the model only the top-k retrieved tools beat binding a large catalog? Predictions are graded as static AST (no tool execution). The primary paper path runs **locally-served GGUF models** (SLM 3B–7B, mid 8B–32B, ceiling 70B) via llama.cpp on DGX Spark; the default distractor-pool protocol still supports local Hugging Face models.
+It answers: does giving the model only the top-k retrieved tools beat binding a large catalog? Predictions are graded as static AST (no tool execution). The **paper v1.0 baseline** runs five locally-served GGUF models (3B–70B) via llama.cpp; frozen results are in [`eval/paper/artifacts/`](eval/paper/artifacts/). The default distractor-pool protocol (`eval/config.yaml`) supports quick iteration with local Hugging Face models.
 
-Three protocols share `eval/run_eval.py`:
+Three entry points share `eval/run_eval.py`:
 
-- **[eval/README.md](eval/README.md)** — install, runner, metrics, and the default *distractor-pool* protocol (`eval/config.yaml`). Start here.
-- **[eval/local/README.md](eval/local/README.md)** — *local GGUF* shared-catalog runs via llama.cpp on DGX Spark (devcontainer or host). Primary paper evidence: [`eval/paper/artifacts/local/`](eval/paper/artifacts/local/).
-- **[eval/paper/README.md](eval/paper/README.md)** — *shared-catalog* protocol design (Baseline vs BM25 vs ToolScope, LangGraph `bind_tools`). Legacy API run: [`eval/paper/artifacts/`](eval/paper/artifacts/).
+- **[eval/README.md](eval/README.md)** — install, runner, metrics, default *distractor-pool* protocol.
+- **[eval/paper/README.md](eval/paper/README.md)** — *shared-catalog* paper protocol (Baseline vs BM25 vs ToolScope). Frozen v1.0 results: [`eval/paper/artifacts/harness_results.md`](eval/paper/artifacts/harness_results.md).
+- **[eval/local/README.md](eval/local/README.md)** — llama.cpp serving on DGX Spark (devcontainer or host).
 
 ```bash
 pip install -e ".[st]"

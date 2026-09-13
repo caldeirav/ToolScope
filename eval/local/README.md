@@ -25,7 +25,7 @@ eval/local/scripts/run_local_matrix.sh --tier mid_production                # 32
 eval/local/scripts/run_local_matrix.sh                                      # full matrix
 ```
 
-Historical API-model artifacts remain in [`eval/paper/artifacts/`](../paper/artifacts/) for reference. New runs target [`eval/paper/artifacts/local/`](../paper/artifacts/local/).
+Frozen paper v1.0 results: [`eval/paper/artifacts/`](../paper/artifacts/).
 
 ## Devcontainer (recommended)
 
@@ -164,7 +164,7 @@ eval/local/scripts/healthcheck.sh
 python eval/local/smoke/tool_call_probe.py --model qwen3-32b
 
 python eval/run_eval.py \
-  --config eval/local/bfcl_multiple_local.yaml \
+  --config eval/paper/bfcl_multiple.yaml \
   --model qwen3-32b
 
 eval/local/scripts/stop_server.sh
@@ -188,7 +188,7 @@ eval/local/scripts/stop_server.sh
 
 Runtime (gitignored): `eval/results/paper/local/`
 
-Frozen snapshot (git-tracked after a full run): `eval/paper/artifacts/local/`
+Frozen snapshot (git-tracked after a full run): `eval/paper/artifacts/`
 
 | File | Contents |
 |---|---|
@@ -218,10 +218,10 @@ Frozen snapshot (git-tracked after a full run): `eval/paper/artifacts/local/`
 
 **Eval HTTP timeouts**
 
-- Increase `timeout_seconds` per model in [`bfcl_multiple_local.yaml`](bfcl_multiple_local.yaml).
+- Increase `timeout_seconds` per model in [`eval/paper/bfcl_multiple.yaml`](../paper/bfcl_multiple.yaml).
 
 ## Protocol
 
-Same as [`eval/paper/README.md`](../paper/README.md): shared catalog C=443, BM25 + ToolScope, LangGraph one-turn `bind_tools`. Config: [`bfcl_multiple_local.yaml`](bfcl_multiple_local.yaml).
+Same as [`eval/paper/README.md`](../paper/README.md): shared catalog C=443, BM25 + ToolScope, LangGraph one-turn `bind_tools`. Config: [`eval/paper/bfcl_multiple.yaml`](../paper/bfcl_multiple.yaml).
 
 **K-ablation** (local runs): `toolscope.k_values: [5, 10, 20]` scores nested prefixes per retriever (`BM25@5`, `ToolScope@10`, …). Retrieve once at k_max=20; anchor k=10 is used for headline deltas in `harness_results.md`. Override via CLI: `--k-values 5 10 20`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate eval/paper/artifacts/local when new model result JSONs are complete.
+# Regenerate eval/paper/artifacts when new model result JSONs are complete.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +21,7 @@ import yaml
 
 repo = Path(sys.argv[1])
 min_n = int(sys.argv[2])
-cfg = yaml.safe_load((repo / "eval/local/bfcl_multiple_local.yaml").read_text()) or {}
+cfg = yaml.safe_load((repo / "eval/paper/bfcl_multiple.yaml").read_text()) or {}
 results = repo / "eval/results/paper/local"
 out = {}
 for entry in cfg.get("model", {}).get("entries", []):
@@ -39,9 +39,20 @@ for entry in cfg.get("model", {}).get("entries", []):
                 1 for i in insts
                 if (i.get("baseline") or {}).get("error") == "api_fail"
             )
+            rerun = (payload.get("config") or {}).get("baseline_rerun") or {}
+            abandoned = set(rerun.get("abandoned_ids") or [])
+            fail_attempts = {
+                str(k): int(v) for k, v in (rerun.get("fail_attempts") or {}).items()
+            }
+            unsettled_api_fail = sum(
+                1 for i in insts
+                if (i.get("baseline") or {}).get("error") == "api_fail"
+                and i.get("id") not in abandoned
+                and fail_attempts.get(i.get("id", ""), 0) < 3
+            )
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
-        if n > best_n and api_fail == 0:
+        if n > best_n and unsettled_api_fail == 0:
             best_n = n
     if best_n >= min_n:
         out[mid] = best_n

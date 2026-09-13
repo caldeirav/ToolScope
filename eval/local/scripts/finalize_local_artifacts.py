@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate eval/paper/artifacts/local from eval/results/paper/local JSONs."""
+"""Regenerate eval/paper/artifacts from eval/results/paper/local JSONs."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-LOCAL_CONFIG = REPO / "eval/local/bfcl_multiple_local.yaml"
+PAPER_CONFIG = REPO / "eval/paper/bfcl_multiple.yaml"
 RESULTS_DIR = REPO / "eval/results/paper/local"
-VERSIONED_DIR = REPO / "eval/paper/artifacts/local"
+VERSIONED_DIR = REPO / "eval/paper/artifacts"
 
 
 def _best_json(output_dir: Path, model_id: str) -> Path | None:
@@ -83,7 +83,7 @@ def _render_readme(
         mcnemar_exact,
     )
 
-    cfg = yaml.safe_load(LOCAL_CONFIG.read_text(encoding="utf-8")) or {}
+    cfg = yaml.safe_load(PAPER_CONFIG.read_text(encoding="utf-8")) or {}
     expected = [e["name"] for e in cfg["model"]["entries"]]
     by_id = {mid: (fname, sha, n) for mid, fname, sha, n in manifest_rows}
     complete = [mid for mid in expected if mid in by_id and by_id[mid][2] >= 200]
@@ -111,8 +111,7 @@ def _render_readme(
         "**n = 200** per completed model. Scores are BFCL-derived, not official Gorilla numbers.",
         "",
         "Runtime writes go to gitignored `eval/results/paper/local/`. This directory is the",
-        "checked-in snapshot of the run of record (same layout as the historical API matrix in",
-        "[`../README.md`](../README.md)).",
+        "git-tracked **paper v1.0** snapshot.",
         "",
         "| Model | Source file (gitignored) | SHA-256 |",
         "|---|---|---|",
@@ -220,7 +219,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    all_metrics, all_instances, manifest_rows = _load_all(LOCAL_CONFIG)
+    all_metrics, all_instances, manifest_rows = _load_all(PAPER_CONFIG)
     if not all_metrics:
         print("No result JSONs found; nothing to freeze.", file=sys.stderr)
         return 1
@@ -250,7 +249,7 @@ def main() -> int:
         src = RESULTS_DIR / name
         (VERSIONED_DIR / name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
-    cfg = yaml.safe_load(LOCAL_CONFIG.read_text(encoding="utf-8")) or {}
+    cfg = yaml.safe_load(PAPER_CONFIG.read_text(encoding="utf-8")) or {}
     expected_n = len(cfg["model"]["entries"])
     complete_n = sum(1 for _, _, _, n in manifest_rows if n >= args.min_n)
     frozen = complete_n >= expected_n

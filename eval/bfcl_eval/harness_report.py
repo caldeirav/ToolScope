@@ -17,11 +17,7 @@ from .tools import safe_tool_name, tool_name
 
 _PAPER_FILES = ("table.md", "summary.csv", "harness_results.md")
 
-_DISPLAY = {
-    "qwen3.5-397b-a17b": "Qwen 3.5-397B",
-    "deepseek-v4-flash-0731": "DeepSeek-V4-Flash",
-    "gemini-3.7-flash": "Gemini 3.7 Flash",
-}
+_DISPLAY: dict[str, str] = {}
 
 
 def mcnemar_exact(wins: int, losses: int) -> float:

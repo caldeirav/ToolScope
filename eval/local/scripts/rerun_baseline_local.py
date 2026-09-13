@@ -19,7 +19,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-LOCAL_CONFIG = REPO / "eval/local/bfcl_multiple_local.yaml"
+PAPER_CONFIG = REPO / "eval/paper/bfcl_multiple.yaml"
 RESULTS_DIR = REPO / "eval/results/paper/local"
 
 
@@ -76,7 +76,8 @@ def _instance_from_saved(d: dict):
     )
 
 
-BASELINE_MAX_ATTEMPTS = 2  # initial attempt + one retry on api_fail
+BASELINE_MAX_ATTEMPTS = 2  # per-run retries on api_fail
+BASELINE_MAX_INSTANCE_ATTEMPTS = 3  # cumulative api_fail attempts, then abandon instance
 
 
 def _model_slug(model_id: str) -> str:
@@ -102,6 +103,10 @@ def _atomic_write_json(path: Path, data: dict) -> None:
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
+        try:
+            os.chmod(path, 0o644)
+        except OSError:
+            pass
     except Exception:
         try:
             os.unlink(tmp)
@@ -195,15 +200,54 @@ def _apply_staging(saved_instances: list[dict], staging: dict) -> None:
             inst.update(staged)
 
 
-def _write_staging(model_id: str, source_json: str, rows_by_id: dict[str, dict]) -> None:
+def _write_staging(
+    model_id: str,
+    source_json: str,
+    rows_by_id: dict[str, dict],
+    *,
+    fail_attempts: dict[str, int],
+) -> None:
     _atomic_write_json(
         _staging_path(model_id),
         {
             "model_id": model_id,
             "source_json": source_json,
             "instances_by_id": rows_by_id,
+            "fail_attempts": fail_attempts,
         },
     )
+
+
+def _load_fail_attempts(staging: dict | None, payload: dict) -> dict[str, int]:
+    attempts: dict[str, int] = {}
+    if staging:
+        raw = staging.get("fail_attempts") or {}
+        attempts.update({str(k): int(v) for k, v in raw.items()})
+    rerun = (payload.get("config") or {}).get("baseline_rerun") or {}
+    raw = rerun.get("fail_attempts") or {}
+    for k, v in raw.items():
+        attempts[str(k)] = max(attempts.get(str(k), 0), int(v))
+    return attempts
+
+
+def _instance_settled(saved: dict, fail_attempts: dict[str, int]) -> bool:
+    if _saved_baseline_ok(saved):
+        return True
+    b = saved.get("baseline") or {}
+    if b.get("error") != "api_fail":
+        # Model ran (parse_fail, wrong_tool, etc.) — do not block completion.
+        return True
+    return fail_attempts.get(saved["id"], 0) >= BASELINE_MAX_INSTANCE_ATTEMPTS
+
+
+def _abandoned_ids(saved_instances: list[dict], fail_attempts: dict[str, int]) -> list[str]:
+    return [
+        s["id"]
+        for s in saved_instances
+        if not _saved_baseline_ok(s)
+        and (s.get("baseline") or {}).get("error") == "api_fail"
+        and fail_attempts.get(s["id"], 0) >= BASELINE_MAX_INSTANCE_ATTEMPTS
+    ]
 
 
 def _persist_snapshot(
@@ -213,6 +257,7 @@ def _persist_snapshot(
     saved_instances: list[dict],
     *,
     api_fail_ids: list[str],
+    fail_attempts: dict[str, int],
 ) -> Path:
     from eval.bfcl_eval.evaluate import aggregate
 
@@ -222,10 +267,12 @@ def _persist_snapshot(
     out_cfg["baseline_rerun"] = {
         "source_json": original_source,
         "context_size_note": "models.yaml context_size>=65536 for large models",
-        "in_progress": bool(api_fail_ids) or not all(
-            _saved_baseline_ok(s) for s in saved_instances
+        "in_progress": not all(
+            _instance_settled(s, fail_attempts) for s in saved_instances
         ),
         "api_fail_ids": api_fail_ids,
+        "fail_attempts": fail_attempts,
+        "abandoned_ids": _abandoned_ids(saved_instances, fail_attempts),
         "completed_baselines": sum(1 for s in saved_instances if _saved_baseline_ok(s)),
         "n_instances": len(saved_instances),
     }
@@ -252,11 +299,22 @@ def _should_rerun_instance(
     *,
     only_failed: bool,
     instance_ids: set[str] | None,
+    fail_attempts: dict[str, int],
 ) -> bool:
     if instance_ids is not None and saved["id"] not in instance_ids:
         return False
+    iid = saved["id"]
+    b = saved.get("baseline") or {}
     if only_failed:
-        return not _saved_baseline_ok(saved)
+        if _saved_baseline_ok(saved):
+            return False
+        if b.get("error") != "api_fail":
+            return False
+        if fail_attempts.get(iid, 0) >= BASELINE_MAX_INSTANCE_ATTEMPTS:
+            return False
+        return True
+    if fail_attempts.get(iid, 0) >= BASELINE_MAX_INSTANCE_ATTEMPTS:
+        return False
     return True
 
 
@@ -367,7 +425,7 @@ def rerun_baseline(
     from eval.bfcl_eval.tools import tool_name
     from eval.bfcl_eval.report import save_results
 
-    cfg = yaml.safe_load(LOCAL_CONFIG.read_text(encoding="utf-8")) or {}
+    cfg = yaml.safe_load(PAPER_CONFIG.read_text(encoding="utf-8")) or {}
     entry = next(
         (e for e in cfg.get("model", {}).get("entries", []) if e["name"] == model_id),
         None,
@@ -391,6 +449,7 @@ def rerun_baseline(
         raise SystemExit(f"no instances in {src}")
 
     staging_path = _staging_path(model_id)
+    staging: dict | None = None
     if resume and staging_path.exists():
         staging = json.loads(staging_path.read_text(encoding="utf-8"))
         expected_source = original_src.name
@@ -402,12 +461,35 @@ def rerun_baseline(
                 f"warning: ignoring stale staging (source {staging.get('source_json')!r})",
                 file=sys.stderr,
             )
+            staging = None
+
+    fail_attempts = _load_fail_attempts(staging, payload)
+    rerun_meta = (payload.get("config") or {}).get("baseline_rerun") or {}
+    for iid in rerun_meta.get("api_fail_ids") or []:
+        fail_attempts[str(iid)] = max(fail_attempts.get(str(iid), 0), 1)
+
+    # Prior runs did not always persist fail_attempts; abandon lone slow api_fail when
+    # the rest of the matrix is already complete (e.g. 199/200 ok).
+    n_ok = sum(1 for s in saved_instances if _saved_baseline_ok(s))
+    for saved in saved_instances:
+        iid = saved["id"]
+        b = saved.get("baseline") or {}
+        if (
+            b.get("error") == "api_fail"
+            and float(b.get("latency_ms") or 0) >= 2000.0
+            and n_ok >= len(saved_instances) - 1
+            and fail_attempts.get(iid, 0) < BASELINE_MAX_INSTANCE_ATTEMPTS
+        ):
+            fail_attempts[iid] = BASELINE_MAX_INSTANCE_ATTEMPTS
 
     pending = [
         s
         for s in saved_instances
         if _should_rerun_instance(
-            s, only_failed=only_failed, instance_ids=instance_ids
+            s,
+            only_failed=only_failed,
+            instance_ids=instance_ids,
+            fail_attempts=fail_attempts,
         )
     ]
     print(
@@ -428,44 +510,71 @@ def rerun_baseline(
 
     out_cfg_base = dict(payload.get("config") or {})
 
-    if not pending and not probe_only:
-        merged = [_instance_result_from_saved_row(s) for s in saved_instances]
-        metrics = aggregate(merged, n_skipped=0)
-        api_fail_ids = [
+    def _retryable_api_fail_ids() -> list[str]:
+        return [
             s["id"]
             for s in saved_instances
             if not _saved_baseline_ok(s)
+            and (s.get("baseline") or {}).get("error") == "api_fail"
+            and fail_attempts.get(s["id"], 0) < BASELINE_MAX_INSTANCE_ATTEMPTS
         ]
+
+    def _all_settled() -> bool:
+        return all(_instance_settled(s, fail_attempts) for s in saved_instances)
+
+    def _promote_if_settled() -> int | None:
+        if not _all_settled():
+            return None
+        merged_local = [_instance_result_from_saved_row(s) for s in saved_instances]
+        metrics_local = aggregate(merged_local, n_skipped=0)
+        abandoned = _abandoned_ids(saved_instances, fail_attempts)
+        out_cfg = dict(out_cfg_base)
+        out_cfg["baseline_rerun"] = {
+            "source_json": original_src.name,
+            "context_size_note": "models.yaml context_size>=65536 for large models",
+            "fail_attempts": fail_attempts,
+            "abandoned_ids": abandoned,
+        }
+        path = save_results(
+            results=merged_local,
+            metrics=metrics_local,
+            config=out_cfg,
+            output_dir=RESULTS_DIR,
+            model_name=model_id,
+        )
+        _update_checkpoint(model_id, merged_local)
+        _clear_staging(model_id)
+        if inprogress.exists():
+            inprogress.unlink()
+        if abandoned:
+            print(
+                f"  promoted with {len(abandoned)} abandoned api_fail "
+                f"({', '.join(abandoned)}) → {path.name}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"  promoted → {path.name}")
+        return 0
+
+    if not pending and not probe_only:
+        merged = [_instance_result_from_saved_row(s) for s in saved_instances]
+        metrics = aggregate(merged, n_skipped=0)
+        api_fail_ids = _retryable_api_fail_ids()
         snap = _persist_snapshot(
             model_id,
             original_src.name,
             payload,
             saved_instances,
             api_fail_ids=api_fail_ids,
+            fail_attempts=fail_attempts,
         )
         print(
             f"  nothing to rerun; baseline name_acc={metrics.baseline_name_acc:.1%} "
             f"({snap.name})"
         )
-        if not api_fail_ids:
-            out_cfg = dict(out_cfg_base)
-            out_cfg["baseline_rerun"] = {
-                "source_json": original_src.name,
-                "context_size_note": "models.yaml context_size>=65536 for large models",
-            }
-            path = save_results(
-                results=merged,
-                metrics=metrics,
-                config=out_cfg,
-                output_dir=RESULTS_DIR,
-                model_name=model_id,
-            )
-            _update_checkpoint(model_id, merged)
-            _clear_staging(model_id)
-            if inprogress.exists():
-                inprogress.unlink()
-            print(f"  promoted → {path.name}")
-            return 0
+        promoted = _promote_if_settled()
+        if promoted is not None:
+            return promoted
         return 1
 
     agent = LangGraphAgent(entry)
@@ -480,13 +589,14 @@ def rerun_baseline(
         return 0
 
     staging_rows: dict[str, dict] = {}
-    if resume and staging_path.exists():
+    if staging is not None:
+        staging_rows = dict(staging.get("instances_by_id") or {})
+    elif resume and staging_path.exists():
         staging_rows = json.loads(staging_path.read_text(encoding="utf-8")).get(
             "instances_by_id", {}
         )
 
     merged: list = []
-    api_fail_ids: list[str] = []
     pending_ids = {s["id"] for s in pending}
     for saved in tqdm(saved_instances, desc=f"{model_id} baseline", unit="inst"):
         inst = by_id.get(saved["id"])
@@ -509,7 +619,7 @@ def rerun_baseline(
             agent, inst.messages, tool_pool, instance_id=inst.id
         )
         if base_res.error == "api_fail":
-            api_fail_ids.append(inst.id)
+            fail_attempts[inst.id] = fail_attempts.get(inst.id, 0) + 1
 
         baseline_pred = base_res.predicted
         name_acc = compute_name_acc(baseline_pred, gt_names)
@@ -558,59 +668,49 @@ def rerun_baseline(
         staging_rows[result.id] = row
         saved.clear()
         saved.update(row)
-        _write_staging(model_id, original_src.name, staging_rows)
+        _write_staging(
+            model_id, original_src.name, staging_rows, fail_attempts=fail_attempts
+        )
         _update_checkpoint(model_id, [result], quiet=True)
         snap = _persist_snapshot(
             model_id,
             original_src.name,
             payload,
             saved_instances,
-            api_fail_ids=api_fail_ids,
+            api_fail_ids=_retryable_api_fail_ids(),
+            fail_attempts=fail_attempts,
         )
         n_ok = sum(1 for s in saved_instances if _saved_baseline_ok(s))
         tqdm.write(f"  saved {result.id} → {snap.name} ({n_ok}/{len(saved_instances)} ok)")
 
     merged = [_instance_result_from_saved_row(s) for s in saved_instances]
     metrics = aggregate(merged, n_skipped=0)
+    retryable = _retryable_api_fail_ids()
     snap = _persist_snapshot(
         model_id,
         original_src.name,
         payload,
         saved_instances,
-        api_fail_ids=api_fail_ids,
+        api_fail_ids=retryable,
+        fail_attempts=fail_attempts,
     )
 
-    if api_fail_ids:
+    promoted = _promote_if_settled()
+    if promoted is not None:
+        print(f"baseline name_acc={metrics.baseline_name_acc:.1%} saved")
+        return promoted
+
+    if retryable:
         print(
-            f"baseline rerun incomplete: {len(api_fail_ids)} api_fail "
-            f"({', '.join(api_fail_ids[:5])}"
-            f"{', ...' if len(api_fail_ids) > 5 else ''}) — "
+            f"baseline rerun incomplete: {len(retryable)} retryable api_fail "
+            f"({', '.join(retryable[:5])}"
+            f"{', ...' if len(retryable) > 5 else ''}) — "
             f"all progress saved → {snap.name}; retry with --only-failed",
             file=sys.stderr,
         )
         return 1
 
-    out_cfg = dict(out_cfg_base)
-    out_cfg["baseline_rerun"] = {
-        "source_json": original_src.name,
-        "context_size_note": "models.yaml context_size>=65536 for large models",
-    }
-    path = save_results(
-        results=merged,
-        metrics=metrics,
-        config=out_cfg,
-        output_dir=RESULTS_DIR,
-        model_name=model_id,
-    )
-    print(
-        f"baseline name_acc={metrics.baseline_name_acc:.1%} "
-        f"saved → {path.name}"
-    )
-    _update_checkpoint(model_id, merged)
-    _clear_staging(model_id)
-    if inprogress.exists():
-        inprogress.unlink()
-    return 0
+    return 1
 
 
 def _update_checkpoint(model_id: str, results, *, quiet: bool = False) -> None:
@@ -656,7 +756,7 @@ def main() -> int:
     parser.add_argument(
         "--only-failed",
         action="store_true",
-        help="Re-run only instances whose saved baseline is api_fail or missing",
+        help="Re-run only api_fail instances with fewer than 3 cumulative attempts",
     )
     parser.add_argument(
         "--no-resume",

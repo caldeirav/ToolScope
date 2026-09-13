@@ -1,7 +1,7 @@
-# BFCL V4 Multiple — local GGUF models via llama.cpp (OpenAI-compatible /v1)
+# BFCL V4 Multiple — paper protocol v1.0 (local GGUF via llama.cpp)
 #
-# Serve models with eval/local/scripts/serve_model.sh before running, or use
-# eval/local/scripts/run_local_matrix.sh for the full automated matrix.
+# Five open-weight models served through an OpenAI-compatible /v1 endpoint.
+# Run the full matrix with: eval/local/scripts/run_local_matrix.sh
 #
 # Scores are BFCL-derived, not official Gorilla leaderboard numbers.
 
@@ -45,7 +45,6 @@ retrievers:
 toolscope:
   k: 10
   # K-ablation: retrieve once at k_max, score nested prefixes per retriever.
-  # Suggested: 5 (tight / value-prop filter), 10 (paper default), 20 (wash-out test).
   k_values: [5, 10, 20]
   embedding:
     provider: sentence-transformers
@@ -54,5 +53,5 @@ toolscope:
 
 output:
   results_dir: eval/results/paper/local
-  versioned_dir: eval/paper/artifacts/local
+  versioned_dir: eval/paper/artifacts
   verbose: false

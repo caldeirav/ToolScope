@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 MODELS_YAML = Path(__file__).resolve().parents[1] / "eval" / "local" / "models.yaml"
-LOCAL_CONFIG = Path(__file__).resolve().parents[1] / "eval" / "local" / "bfcl_multiple_local.yaml"
+PAPER_CONFIG = Path(__file__).resolve().parents[1] / "eval" / "paper" / "bfcl_multiple.yaml"
 
 EXPECTED_MODELS = {
     "llama-3.2-3b-instruct",
@@ -59,7 +59,7 @@ def test_mid_tier_single_file_quants(models_registry: dict):
     qwen3 = models["qwen3-32b"]
     assert "hf_include" in qwen3
     assert "Q4_K_M" in qwen3["file_glob"]
-    assert qwen3["context_size"] == 16384
+    assert qwen3["context_size"] == 65536
 
 
 def test_model_aliases_unique(models_registry: dict):
@@ -75,8 +75,8 @@ def test_required_model_fields(models_registry: dict):
         assert not missing, f"{model_id} missing {missing}"
 
 
-def test_local_bfcl_config_matches_registry(models_registry: dict):
-    cfg = yaml.safe_load(LOCAL_CONFIG.read_text()) or {}
+def test_paper_bfcl_config_matches_registry(models_registry: dict):
+    cfg = yaml.safe_load(PAPER_CONFIG.read_text()) or {}
     registry_aliases = {m["alias"] for m in (models_registry.get("models") or {}).values()}
     entry_names = {e["name"] for e in cfg["model"]["entries"]}
     assert entry_names == registry_aliases
@@ -84,4 +84,4 @@ def test_local_bfcl_config_matches_registry(models_registry: dict):
     assert cfg["dataset"]["protocol"] == "shared_catalog"
     assert cfg["dataset"]["pool_size"] is None
     assert cfg["toolscope"]["k_values"] == [5, 10, 20]
-    assert cfg["output"]["versioned_dir"] == "eval/paper/artifacts/local"
+    assert cfg["output"]["versioned_dir"] == "eval/paper/artifacts"
