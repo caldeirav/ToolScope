@@ -507,14 +507,11 @@ def rerun_retrievers(
             "instances_by_id", {}
         )
 
-    pending_ids = {s["id"] for s in pending}
-    for saved in tqdm(saved_instances, desc=f"{model_id} retrievers", unit="inst"):
+    for saved in tqdm(pending, desc=f"{model_id} retrievers", unit="inst"):
         inst = by_id.get(saved["id"])
         if inst is None:
             raise SystemExit(f"missing BFCL entry for {saved['id']}")
         if not _gt_names(inst.ground_truth):
-            continue
-        if saved["id"] not in pending_ids:
             continue
 
         baseline_tokens = int((saved.get("baseline") or {}).get("tokens") or 0)
