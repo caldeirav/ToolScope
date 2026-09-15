@@ -10,6 +10,7 @@ rank-bm25>=0.2
 scikit-learn>=1.0
 tenacity>=8.0
 python-dotenv>=1.0
+huggingface_hub>=0.23
 
 # Paper protocol (LangGraph + hosted APIs). Also listed in eval/paper/requirements.txt.
 langchain>=0.3

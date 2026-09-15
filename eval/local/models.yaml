@@ -1,0 +1,94 @@
+# Canonical registry for local GGUF models served via llama.cpp.
+# Used by download_models.sh, serve_model.sh, and run_local_matrix.sh.
+#
+# Three-tier comparative slate (DGX Spark benchmark, ~128 GB unified memory):
+#   high_sensitivity  — largest ToolScope delta (~30% → 85%+ name accuracy)
+#   mid_production    — edge-deployable agents (dense 8B + 32B; no 300B+ MoE)
+#   control_ceiling   — top-tier open weights that load on-device
+
+defaults:
+  context_size: 32768
+  n_gpu_layers: 99
+  host: 0.0.0.0
+  port: 8000
+  image: toolscope-llamacpp:latest
+  container_name: toolscope-llama
+
+tiers:
+  high_sensitivity:
+    label: "High-Sensitivity SLM"
+    description: "Primary testbed — largest delta between raw prompting and ToolScope-filtered prompting."
+    models:
+      - llama-3.2-3b-instruct
+      - qwen2.5-7b-instruct
+  mid_production:
+    label: "Mid-Sized Production"
+    description: "Edge-deployable agent sweet spot (Meta 8B + Qwen 32B dense)."
+    models:
+      - llama-3.1-8b-instruct
+      - qwen3-32b
+  control_ceiling:
+    label: "Control Ceiling"
+    description: "Baseline standard — does ToolScope still help at the top?"
+    models:
+      - llama-3.3-70b-instruct
+
+models:
+  # ── High-Sensitivity SLM tier ─────────────────────────────────────────────
+  llama-3.2-3b-instruct:
+    tier: high_sensitivity
+    hf_repo: bartowski/Llama-3.2-3B-Instruct-GGUF
+    file_glob: "*Q8_0*.gguf"
+    alias: llama-3.2-3b-instruct
+    server_extra_args: []
+    context_size: 32768
+    timeout_seconds: 180
+
+  qwen2.5-7b-instruct:
+    tier: high_sensitivity
+    hf_repo: bartowski/Qwen2.5-7B-Instruct-GGUF
+    file_glob: "*Q8_0*.gguf"
+    alias: qwen2.5-7b-instruct
+    server_extra_args:
+      - --jinja
+    context_size: 32768
+    timeout_seconds: 180
+
+  # ── Mid-Sized Production tier ─────────────────────────────────────────────
+  llama-3.1-8b-instruct:
+    tier: mid_production
+    hf_repo: bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+    file_glob: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    hf_include: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    alias: llama-3.1-8b-instruct
+    server_extra_args: []
+    context_size: 32768
+    timeout_seconds: 180
+
+  qwen3-32b:
+    tier: mid_production
+    hf_repo: Qwen/Qwen3-32B-GGUF
+    file_glob: "Qwen3-32B-Q4_K_M.gguf"
+    hf_include: "Qwen3-32B-Q4_K_M.gguf"
+    alias: qwen3-32b
+    server_extra_args:
+      - --jinja
+      - -np
+      - 1
+    context_size: 65536
+    healthcheck_timeout_seconds: 3600
+    timeout_seconds: 600
+
+  # ── Control Ceiling tier ──────────────────────────────────────────────────
+  llama-3.3-70b-instruct:
+    tier: control_ceiling
+    hf_repo: bartowski/Llama-3.3-70B-Instruct-GGUF
+    file_glob: "*Q4_K_M*.gguf"
+    hf_include: "*Q4_K_M*.gguf"
+    alias: llama-3.3-70b-instruct
+    server_extra_args:
+      - -np
+      - 1
+    context_size: 131072
+    healthcheck_timeout_seconds: 7200
+    timeout_seconds: 900

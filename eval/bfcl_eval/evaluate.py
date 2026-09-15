@@ -259,12 +259,16 @@ def _run_retriever(
     k: int,
     possible_answer: Any = None,
     functions_bfcl: Optional[List[Dict]] = None,
+    ranked_tools: Optional[List[Any]] = None,
 ) -> RetrieverResult:
     """Run one retriever against one instance and compute all metrics."""
     if hasattr(retriever, "set_ground_truth"):
         retriever.set_ground_truth(gt_names)
 
-    r_tools = retriever.filter(messages, k=k)
+    if ranked_tools is not None:
+        r_tools = ranked_tools[:k]
+    else:
+        r_tools = retriever.filter(messages, k=k)
     r_names = [tool_name(t) for t in r_tools]
     r_tokens = _approx_tokens(r_tools) if r_tools else 0
     pred_res = (
@@ -319,12 +323,16 @@ def evaluate_instance(
     k: int,
     possible_answer: Any = None,
     functions_bfcl: Optional[List[Dict]] = None,
+    k_values: Optional[List[int]] = None,
 ) -> Optional[InstanceResult]:
     """
     Run one evaluation instance.
 
     Baseline: model sees the full tool_pool (shared catalog C, or per-instance pool).
     Each retriever: model sees only its top-k tools from the same catalog.
+
+    When ``k_values`` is set (e.g. [5, 10, 20]), retrieve once at k_max per
+    retriever and score nested prefixes. Result keys become ``BM25@5``, etc.
     """
     gt_names = _gt_names(ground_truth)
     if not gt_names:
@@ -344,30 +352,47 @@ def evaluate_instance(
     ) if possible_answer is not None else exact
 
     retriever_results: Dict[str, RetrieverResult] = {}
+    ablation_ks = sorted(set(int(x) for x in (k_values or []))) if k_values else None
+    k_max = max(ablation_ks) if ablation_ks else k
+
     for rname, retriever in retrievers.items():
         try:
-            retriever_results[rname] = _run_retriever(
-                retriever, messages, ground_truth, gt_names,
-                baseline_tokens, model, k,
-                possible_answer=possible_answer,
-                functions_bfcl=functions_bfcl,
-            )
+            if ablation_ks:
+                ranked = retriever.filter(messages, k=k_max)
+                for kv in ablation_ks:
+                    key = f"{rname}@{kv}"
+                    retriever_results[key] = _run_retriever(
+                        retriever, messages, ground_truth, gt_names,
+                        baseline_tokens, model, kv,
+                        possible_answer=possible_answer,
+                        functions_bfcl=functions_bfcl,
+                        ranked_tools=ranked,
+                    )
+            else:
+                retriever_results[rname] = _run_retriever(
+                    retriever, messages, ground_truth, gt_names,
+                    baseline_tokens, model, k,
+                    possible_answer=possible_answer,
+                    functions_bfcl=functions_bfcl,
+                )
         except Exception:
-            retriever_results[rname] = RetrieverResult(
-                name_acc=False,
-                exact_match=False,
-                ast_acc=False,
-                recall=0.0,
-                dcg=0.0,
-                ndcg=0.0,
-                gt_rank=None,
-                tool_names=[],
-                tokens=0,
-                compression_rate=0.0,
-                raw="",
-                predicted=None,
-                error="api_fail",
-            )
+            targets = [f"{rname}@{kv}" for kv in ablation_ks] if ablation_ks else [rname]
+            for key in targets:
+                retriever_results[key] = RetrieverResult(
+                    name_acc=False,
+                    exact_match=False,
+                    ast_acc=False,
+                    recall=0.0,
+                    dcg=0.0,
+                    ndcg=0.0,
+                    gt_rank=None,
+                    tool_names=[],
+                    tokens=0,
+                    compression_rate=0.0,
+                    raw="",
+                    predicted=None,
+                    error="api_fail",
+                )
 
     baseline_error = (
         base_res.error

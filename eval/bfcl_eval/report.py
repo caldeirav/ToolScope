@@ -166,12 +166,19 @@ def print_cross_model_summary(
         return
 
     model_names    = list(all_metrics.keys())
-    retriever_names = list(next(iter(all_metrics.values())).retrievers.keys())
+    retriever_names: List[str] = []
+    seen: set[str] = set()
+    for m in all_metrics.values():
+        for rn in m.retrievers:
+            if rn not in seen:
+                seen.add(rn)
+                retriever_names.append(rn)
+    retriever_names.sort()
 
-    # Column widths
+    # Column widths — widen for k-ablation keys like ToolScope@10
     short_names = [n.split("/")[-1] for n in model_names]
     label_w = max(len(s) for s in short_names) + 2
-    col_w = 10
+    col_w = max(10, max((len(rn) for rn in retriever_names), default=0) + 2)
     n_cols = 1 + len(retriever_names)  # Baseline + retrievers
     total_w = label_w + col_w * n_cols
 
@@ -190,7 +197,8 @@ def print_cross_model_summary(
             b_str = baseline_fn(m) if baseline_fn else "—"
             line = f"  {short:<{label_w - 2}}{b_str:>{col_w}}"
             for rn in retriever_names:
-                line += f"{value_fn(m, rn):>{col_w}}"
+                rm = m.retrievers.get(rn)
+                line += f"{(value_fn(rm) if rm is not None else '—'):>{col_w}}"
             print(line)
         print(sep)
         print()
@@ -203,22 +211,22 @@ def print_cross_model_summary(
 
     _print_table(
         f"  Tool name accuracy",
-        lambda m, rn: _pct(m.retrievers[rn].name_acc),
+        lambda rm: _pct(rm.name_acc),
         baseline_fn=lambda m: _pct(m.baseline_name_acc),
     )
     _print_table(
         f"  Exact match (name + args)",
-        lambda m, rn: _pct(m.retrievers[rn].exact_match),
+        lambda rm: _pct(rm.exact_match),
         baseline_fn=lambda m: _pct(m.baseline_exact_match),
     )
     _print_table(
         f"  NDCG@{k}  (retrieval quality — same across models)",
-        lambda m, rn: _f3(m.retrievers[rn].ndcg),
+        lambda rm: _f3(rm.ndcg),
         baseline_fn=None,
     )
     _print_table(
         f"  Δ name acc vs baseline",
-        lambda m, rn: _delta(m.retrievers[rn].delta_name_acc),
+        lambda rm: _delta(rm.delta_name_acc),
         baseline_fn=None,
     )
 

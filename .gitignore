@@ -21,6 +21,13 @@ env/
 # checked in under eval/paper/artifacts/)
 eval/.bfcl_cache/
 eval/results/
+eval/local/models/
+eval/local/vendor/
+eval/local/.podman/
+
+# Local eval matrix / agent scratch (runtime logs live under /tmp/toolscope-*.log)
+.agent-*
+.matrix-*
 
 # Secrets
 .env
